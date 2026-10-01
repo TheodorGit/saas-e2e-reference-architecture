@@ -33,20 +33,25 @@ and the test that guards it goes red at the exact check.
 
 ## What a report looks like
 
-Both of these are live, refreshed by CI on every push:
-[the green report](https://TheodorGit.github.io/saas-e2e-reference-architecture/green/report.html)
-and [the red one](https://TheodorGit.github.io/saas-e2e-reference-architecture/red/report.html).
+Every run mails its report. The email gives the verdict and the failures first; the
+full report - every test, every step, a video of every browser test and the evidence
+of each failed check - is attached as an HTML file to download and open. Both reports
+are also live: [the green one](https://TheodorGit.github.io/saas-e2e-reference-architecture/green/report.html) and
+[the red one](https://TheodorGit.github.io/saas-e2e-reference-architecture/red/report.html).
 
-A green run - every action reconciled, and a facts strip saying what the run did:
+**A green run** - the email, and the report attached to it:
 
-![A green report](docs/images/report-green.png)
+<img src="docs/images/email-green.png" width="49%" alt="The green run's report email">
+<img src="docs/images/report-green.png" width="49%" alt="The green run's full report">
 
-A red run with `suppression_leak` - the guarding test fails at the exact check, saying
-what it means, what was expected and what happened instead, next to the email the
-suppressed contact received and a video of the test. The leak also reaches billing, the
-dashboard and the report, and each says so:
+**A red run, with `suppression_leak` switched on** - the email names each failed check
+and what broke; the attached report shows it at the exact check, with what was
+expected, what happened instead, the email the suppressed contact received, and a
+video of the test. The leak also reaches billing, the dashboard and the report, and
+each says so:
 
-![A red report](docs/images/report-red.png)
+<img src="docs/images/email-red.png" width="49%" alt="The red run's report email">
+<img src="docs/images/report-red.png" width="49%" alt="The red run's full report">
 
 ## Context
 
