@@ -4,7 +4,8 @@
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
-  "postCreateCommand": "pip install -e '.[dev,app]'",
+  "onCreateCommand": "pip install -e '.[dev,app]'",
+  "updateContentCommand": "docker compose build",
   "forwardPorts": [8000, 8025, 7900],
   "portsAttributes": {
     "8000": { "label": "Demo ESP App" },
