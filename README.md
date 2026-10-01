@@ -1,5 +1,14 @@
 # saas-e2e-reference-architecture
 
+[![ci](https://github.com/TheodorGit/saas-e2e-reference-architecture/actions/workflows/ci.yml/badge.svg)](https://github.com/TheodorGit/saas-e2e-reference-architecture/actions/workflows/ci.yml)
+[![live report](https://img.shields.io/badge/live%20report-open-4F46E5)](https://TheodorGit.github.io/saas-e2e-reference-architecture/)
+[![injected defects](https://img.shields.io/badge/injected%20defects-19%2F19%20caught-brightgreen)](example/app/bugs.py)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![Playwright](https://img.shields.io/badge/playwright-1.63-2EAD33)
+![pytest](https://img.shields.io/badge/pytest-8%2B-0A9EDC)
+![Docker Compose](https://img.shields.io/badge/docker%20compose-one%20command-2496ED)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
+
 End-to-end tests for a SaaS product. Every page must render, and every action must end
 on its visible result - that is the floor. On top of it, the suite proves what the
 screen cannot: when it says an email batch went out, it has found each recipient's own

@@ -7,6 +7,7 @@ name = "saas-e2e-reference-architecture"
 version = "0.1.0"
 description = "A reference architecture for end-to-end testing of a SaaS product: UI, API, email delivery, billing and reports, proven on a runnable example."
 readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.11"
 dependencies = [
     "pytest>=8",
