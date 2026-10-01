@@ -1,0 +1,22 @@
+# Start here
+
+**1. Run the suite.** Copy this into the terminal below and press Enter:
+
+```
+docker compose up --build --exit-code-from tests
+```
+
+**2. Watch it.** When the browser tests start, the live view opens in a new tab by
+itself. If it does not (your browser may block it), open the **Ports** tab next to
+the terminal and click the globe icon on **7900 - Live UI tests**.
+
+**3. See the result.** The run ends by showing its report email as it arrived, then
+the full report it attaches - every test, every step, a video of every browser test.
+
+To see a test catch a defect, run it with one switched on:
+
+```
+DEMO_ESP_BUGS=suppression_leak docker compose up --build --exit-code-from tests
+```
+
+The other defects are listed in `example/app/bugs.py`.

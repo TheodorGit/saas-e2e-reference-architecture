@@ -6,11 +6,21 @@
   },
   "onCreateCommand": "pip install -e '.[dev,app]'",
   "updateContentCommand": "docker compose build",
-  "forwardPorts": [8000, 8025, 7900],
+  "forwardPorts": [8000, 8025],
   "portsAttributes": {
     "8000": { "label": "Demo ESP App" },
     "8025": { "label": "Mailpit inbox" },
-    "7900": { "label": "Live UI tests" }
+    "7900": { "label": "Live UI tests", "onAutoForward": "openBrowser" }
+  },
+  "customizations": {
+    "codespaces": { "openFiles": [".devcontainer/START_HERE.md"] },
+    "vscode": {
+      "settings": {
+        "workbench.editorAssociations": {
+          "**/.devcontainer/START_HERE.md": "vscode.markdown.preview.editor"
+        }
+      }
+    }
   },
   "hostRequirements": { "cpus": 4, "memory": "8gb" }
 }
