@@ -39,19 +39,29 @@ of each failed check - is attached as an HTML file to download and open. Both re
 are also live: [the green one](https://TheodorGit.github.io/saas-e2e-reference-architecture/green/report.html) and
 [the red one](https://TheodorGit.github.io/saas-e2e-reference-architecture/red/report.html).
 
-**A green run** - the email, and the report attached to it:
+**A green run.**
 
-<img src="docs/images/email-green.png" width="49%" alt="The green run's report email">
-<img src="docs/images/report-green.png" width="49%" alt="The green run's full report">
+The email, as it arrives: the verdict, what the run did, and every test that passed,
+with the full report attached at the bottom.
 
-**A red run, with `suppression_leak` switched on** - the email names each failed check
-and what broke; the attached report shows it at the exact check, with what was
-expected, what happened instead, the email the suppressed contact received, and a
-video of the test. The leak also reaches billing, the dashboard and the report, and
-each says so:
+![The green run's report email](docs/images/email-green.png)
 
-<img src="docs/images/email-red.png" width="49%" alt="The red run's report email">
-<img src="docs/images/report-red.png" width="49%" alt="The red run's full report">
+The attached report: every test and every step, with a video of every browser test.
+
+![The green run's full report](docs/images/report-green.png)
+
+**A red run, with `suppression_leak` switched on.**
+
+The email: failures first, each with what broke, what was expected, what happened
+instead, and the exact check.
+
+![The red run's report email](docs/images/email-red.png)
+
+The attached report: the failed check in place, next to the email the suppressed
+contact received and a video of the test. The leak also reaches billing, the dashboard
+and the report, and each says so.
+
+![The red run's full report](docs/images/report-red.png)
 
 ## Context
 
