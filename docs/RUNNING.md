@@ -143,8 +143,10 @@ python -m http.server -d site
 
 ## Codespaces
 
-`.devcontainer/` gives a Python 3.12 container with Docker-in-Docker and ports 8000
-(Demo ESP App), 8025 (Mailpit) and 7900 (the live view of the UI tests) forwarded. Run
-the README's one command inside it; open the forwarded 7900 to watch the run. Creating
-the container installs the project and builds the images (`docker compose build`), so
-with a Codespaces prebuild set up on `main` that work is done before anyone opens one.
+`.devcontainer/` gives a Python 3.12 container with Docker-in-Docker, and opens with
+`.devcontainer/START_HERE.md`: the one command to run, and where the live view appears.
+Ports 8000 (Demo ESP App) and 8025 (Mailpit) are forwarded; port 7900, the live view
+of the UI tests, opens in a new browser tab by itself as soon as a run starts it.
+Creating the container installs the project and builds the images (`docker compose
+build`), so with a Codespaces prebuild set up on `main` that work is done before
+anyone opens one.
