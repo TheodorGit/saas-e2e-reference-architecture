@@ -39,14 +39,41 @@ def latest_report(latest_page: Path) -> Path | None:
     return (latest_page.parent / match.group(1).replace("%20", " ")) if match else None
 
 
+# The element that scrolls under the screen's centre: Mailpit scrolls an inner panel,
+# a report the whole document.
+FIND_SCROLLER = """([x, y]) => {
+  let el = document.elementFromPoint(x, y);
+  while (el && el !== document.body) {
+    const overflow = getComputedStyle(el).overflowY;
+    if (/(auto|scroll)/.test(overflow) && el.scrollHeight > el.clientHeight + 1) return el;
+    el = el.parentElement;
+  }
+  return document.scrollingElement;
+}"""
+STEPS = 24            # scroll steps each way, small enough to read along
+BOTTOM_PAUSE_S = 1.5  # a beat at the end before scrolling back
+
+
 def present(page, seconds: float):
-    """Hold the page on screen: a third of the time at the top, then a slow scroll."""
-    page.mouse.move(SCREEN[0] / 2, SCREEN[1] / 2)
-    time.sleep(seconds / 3)  # the viewer reads the top first
-    steps = 12
-    for _ in range(steps):
-        page.mouse.wheel(0, 260)
-        time.sleep(seconds * 2 / 3 / steps)  # a pace a person can follow
+    """Show the whole page and end on its title: hold the top, scroll down to the
+    bottom, pause, scroll slowly back up, and hold the top again."""
+    scroller = page.evaluate_handle(FIND_SCROLLER, [SCREEN[0] / 2, SCREEN[1] / 2])
+    distance = page.evaluate("el => el.scrollHeight - el.clientHeight", scroller)
+    if distance <= 0:
+        time.sleep(seconds)  # nothing to scroll: the whole page is in view
+        return
+
+    def glide(start: float, end: float, duration: float):
+        for step in range(1, STEPS + 1):
+            y = start + (end - start) * step / STEPS
+            page.evaluate("([el, y]) => el.scrollTo(0, y)", [scroller, y])
+            time.sleep(duration / STEPS)  # a pace a person can follow
+
+    time.sleep(seconds * 0.2)  # the viewer reads the top first
+    glide(0, distance, seconds * 0.3)
+    time.sleep(BOTTOM_PAUSE_S)  # a beat at the bottom
+    glide(distance, 0, seconds * 0.3)
+    time.sleep(max(0.0, seconds * 0.2 - BOTTOM_PAUSE_S))  # end on the title
 
 
 def main():

@@ -10,8 +10,10 @@
   "portsAttributes": {
     "8000": { "label": "Demo ESP App" },
     "8025": { "label": "Mailpit inbox" },
-    "7900": { "label": "Live UI tests", "onAutoForward": "openBrowser" }
+    "7900": { "label": "Live UI tests", "onAutoForward": "openPreview" },
+    "1025": { "label": "Mailpit SMTP", "onAutoForward": "ignore" }
   },
+  "otherPortsAttributes": { "onAutoForward": "silent" },
   "customizations": {
     "codespaces": { "openFiles": [".devcontainer/START_HERE.md"] },
     "vscode": {

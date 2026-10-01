@@ -38,7 +38,8 @@ and the test that guards it goes red at the exact check.
 - **Try it in your browser** -
   [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/TheodorGit/saas-e2e-reference-architecture?quickstart=1)
   then click **Create new codespace**. It opens with a short *Start here* page: run the
-  one command it gives you, and the live view of the tests opens in a new tab by itself.
+  one command it gives you, and the live view of the tests opens by itself next to the
+  terminal.
   The run ends by showing its report email as it arrived, then the full report.
 
 ## What a report looks like
