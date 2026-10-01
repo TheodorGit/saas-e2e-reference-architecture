@@ -1,0 +1,134 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  framework:
+    runs-on: ubuntu-latest
+    services:
+      mailpit:
+        image: axllent/mailpit
+        ports:
+          - 8025:8025
+          - 1025:1025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      # Unit and integration: the Mailpit service makes the live adapter test run.
+      - run: pytest framework/tests -rs
+
+  # The example against a clean app: must be green.
+  example-clean:
+    needs: framework
+    runs-on: ubuntu-latest
+    env:
+      E2E_HEADLESS: "1"  # nobody watches CI: full speed, no live view
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - run: docker compose up --build --exit-code-from tests
+      - run: python scripts/check_flag_run.py reports/clean
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-clean
+          path: reports/clean/
+
+  # The bug matrix is the one source for which flags exist.
+  flags:
+    needs: framework
+    runs-on: ubuntu-latest
+    outputs:
+      list: ${{ steps.matrix.outputs.list }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: matrix
+        run: >-
+          echo "list=$(python -c 'import json, example.suite.bug_matrix as m;
+          print(json.dumps(sorted(m.GUARDS)))')" >> "$GITHUB_OUTPUT"
+
+  # One run per injected defect: each must be red in its named test, at its check.
+  example-bug:
+    needs: [example-clean, flags]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        flag: ${{ fromJSON(needs.flags.outputs.list) }}
+    env:
+      DEMO_ESP_BUGS: ${{ matrix.flag }}
+      E2E_HEADLESS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - name: run the suite against the defect (expected to fail)
+        run: |
+          set +e
+          docker compose up --build --exit-code-from tests
+          code=$?
+          set -e
+          if [ "$code" -eq 0 ]; then
+            echo "::error::the suite passed with ${DEMO_ESP_BUGS} injected"
+            exit 1
+          fi
+      - run: python scripts/check_flag_run.py "reports/${DEMO_ESP_BUGS}" --flag "${DEMO_ESP_BUGS}"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-${{ matrix.flag }}
+          path: reports/${{ matrix.flag }}/
+
+  # The sample-report site: the clean run and one red run, refreshed on every push to
+  # main once everything above held. Needs Settings > Pages > Source: GitHub Actions.
+  pages:
+    needs: [example-clean, example-bug]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: report-clean
+          path: reports/clean
+      - uses: actions/download-artifact@v4
+        with:
+          name: report-suppression_leak
+          path: reports/suppression_leak
+      - run: python scripts/build_site.py --green reports/clean --red reports/suppression_leak --out site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "saas-e2e-reference-architecture"
+version = "0.1.0"
+description = "A reference architecture for end-to-end testing of a SaaS product: UI, API, email delivery, billing and reports, proven on a runnable example."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pytest>=8",
+    "pytest-playwright>=0.5",
+    "requests>=2.32",
+]
+
+[project.optional-dependencies]
+app = [
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",
+]
+dev = [
+    "pre-commit>=3.7",
+    "ruff>=0.6",
+]
+
+[tool.setuptools.packages.find]
+include = ["framework*"]
+exclude = ["framework.tests*"]
+
+[tool.pytest.ini_options]
+testpaths = ["framework/tests", "example/suite/tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "unit: framework unit tests, no browser and no network",
+    "integration: framework tests against a real local service (Mailpit)",
+    "pipeline: example staged pipeline (baseline, actions, verification)",
+    "api: example API tests",
+    "destructive: changes controlled resources, opt-in only",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

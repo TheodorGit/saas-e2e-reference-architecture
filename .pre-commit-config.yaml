@@ -1,0 +1,26 @@
+repos:
+  - repo: local
+    hooks:
+      - id: denylist
+        name: identifier denylist
+        entry: python scripts/check_denylist.py
+        language: python
+        pass_filenames: true
+      - id: framework-boundary
+        name: framework stays product-agnostic
+        entry: python -m pytest framework/tests/test_boundaries.py -q -p no:cacheprovider
+        language: python
+        additional_dependencies: [pytest]
+        pass_filenames: false
+        files: ^framework/
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.9
+    hooks:
+      - id: ruff-check
+        args: [--fix]

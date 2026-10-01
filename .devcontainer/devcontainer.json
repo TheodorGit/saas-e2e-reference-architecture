@@ -1,0 +1,15 @@
+{
+  "name": "saas-e2e-reference-architecture",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "postCreateCommand": "pip install -e '.[dev,app]'",
+  "forwardPorts": [8000, 8025, 7900],
+  "portsAttributes": {
+    "8000": { "label": "Demo ESP App" },
+    "8025": { "label": "Mailpit inbox" },
+    "7900": { "label": "Live UI tests" }
+  },
+  "hostRequirements": { "cpus": 4, "memory": "8gb" }
+}

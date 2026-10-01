@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# Test output
+.pytest_cache/
+.ruff_cache/
+reports/
+site/
+test-results/
+*.har
+*-trace.zip
+
+# Example app's local database
+data/
+
+# Local config and secrets
+.env
+.env.*
+!.env.example
+
+# AI-assistant working rules: kept local, not published
+AGENTS.md
+CLAUDE.md
+
+# Editors and tools
+.idea/
+.vscode/
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db

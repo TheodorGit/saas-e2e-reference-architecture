@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo ESP App</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header class="topbar" id="topbar" hidden>
+    <span class="brand">Demo ESP App</span>
+    <nav aria-label="Main">
+      <a href="#/dashboard">Dashboard</a>
+      <a href="#/contacts">Contacts</a>
+      <a href="#/validate">Validate</a>
+      <a href="#/email-batches">Email batches</a>
+      <a href="#/suppression">Address suppression</a>
+      <a href="#/credits">Credits</a>
+    </nav>
+    <button type="button" class="link" id="signout">Sign out</button>
+  </header>
+  <main id="view" class="container"></main>
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+  <script type="module" src="/static/js/app.js"></script>
+</body>
+</html>

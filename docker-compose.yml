@@ -1,0 +1,89 @@
+# Demo ESP App, its worker, a Mailpit inbox and the test runner. One command:
+#
+#     docker compose up --build --exit-code-from tests
+#
+# runs the suite - watch the UI tests live at http://localhost:7900 - writes
+# reports/<bugs or clean>/run_<id>/ (reports/latest.html opens the newest), and exits
+# with pytest's code. E2E_HEADLESS=1 runs it headless. No real account, key or .env is
+# needed. DEMO_ESP_BUGS=<flag>[,<flag>] injects defects (example/app/bugs.py).
+services:
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
+  demo-esp:
+    build:
+      context: .
+      dockerfile: example/app/Dockerfile
+    environment: &demo-esp-env
+      DEMO_ESP_PUBLIC_URL: ${DEMO_ESP_PUBLIC_URL:-http://localhost:8000}
+      DEMO_ESP_SMTP_HOST: mailpit
+      DEMO_ESP_SMTP_PORT: "1025"
+      DEMO_ESP_INGEST_DELAY_S: ${DEMO_ESP_INGEST_DELAY_S:-5}
+      # Short, so the suite can wait out the rolling free window within one run.
+      DEMO_ESP_VALIDATION_FREE_WINDOW_S: ${DEMO_ESP_VALIDATION_FREE_WINDOW_S:-20}
+      DEMO_ESP_UI_LATENCY_MS: ${DEMO_ESP_UI_LATENCY_MS:-300}
+      DEMO_ESP_BUGS: ${DEMO_ESP_BUGS:-}
+    volumes:
+      - demo-esp-data:/data
+    ports:
+      - "8000:8000"
+      # The test runner shares this service's network, so its live view is
+      # published here: watch the UI tests at http://localhost:7900.
+      - "7900:7900"
+    depends_on:
+      - mailpit
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  worker:
+    build:
+      context: .
+      dockerfile: example/app/Dockerfile
+    command: ["python", "-m", "example.app.worker"]
+    environment: *demo-esp-env
+    volumes:
+      - demo-esp-data:/data
+    depends_on:
+      demo-esp:
+        condition: service_healthy
+
+  tests:
+    build:
+      context: .
+      dockerfile: example/suite/Dockerfile
+    # Shares the app's network namespace: localhost:8000 is the app for the browser
+    # AND for the links inside the emails, exactly as on a developer's machine.
+    network_mode: "service:demo-esp"
+    environment:
+      DEMO_ESP_URL: http://localhost:8000
+      E2E_MAILPIT_URL: http://mailpit:8025
+      E2E_RESULTS_DIR: /srv/reports/${DEMO_ESP_BUGS:-clean}
+      E2E_LATEST_PAGE: /srv/reports/latest.html
+      E2E_ENVIRONMENT: "docker compose, bugs: ${DEMO_ESP_BUGS:-none}"
+      # Headed and slowed down so a person can watch; E2E_HEADLESS=1 for CI.
+      E2E_HEADLESS: ${E2E_HEADLESS:-0}
+      E2E_SLOWMO_MS: ${E2E_SLOWMO_MS:-300}
+      # Sized to this app (mail in ~1s, stats in DEMO_ESP_INGEST_DELAY_S), not a real one.
+      E2E_MAIL_BUDGET_S: ${E2E_MAIL_BUDGET_S:-20}
+      E2E_INGEST_BUDGET_S: ${E2E_INGEST_BUDGET_S:-20}
+      # The report is mailed too - into Mailpit, never through the app under test.
+      E2E_REPORT_TO: qa-reports@example.com
+      E2E_SMTP_HOST: mailpit
+      E2E_SMTP_PORT: "1025"
+    volumes:
+      - ./reports:/srv/reports
+    depends_on:
+      demo-esp:
+        condition: service_healthy
+      worker:
+        condition: service_started
+
+volumes:
+  demo-esp-data:
