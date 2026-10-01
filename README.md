@@ -28,8 +28,9 @@ and the test that guards it goes red at the exact check.
   Nothing to install.
 - **Try it in your browser** -
   [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/TheodorGit/saas-e2e-reference-architecture?quickstart=1)
-  then run `docker compose up --build --exit-code-from tests` in its terminal, and open
-  the forwarded port 7900 to watch the tests.
+  then click **Create new codespace**. When it has opened, run
+  `docker compose up --build --exit-code-from tests` in its terminal, and open the
+  forwarded port 7900 to watch the tests.
 
 ## What a report looks like
 
