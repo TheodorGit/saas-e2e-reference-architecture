@@ -30,7 +30,8 @@ and the test that guards it goes red at the exact check.
   [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/TheodorGit/saas-e2e-reference-architecture?quickstart=1)
   then click **Create new codespace**. When it has opened, run
   `docker compose up --build --exit-code-from tests` in its terminal, and open the
-  forwarded port 7900 to watch the tests.
+  forwarded port 7900 to watch the tests. The run ends by showing its report email
+  as it arrived, then the full report.
 
 ## What a report looks like
 
@@ -91,8 +92,9 @@ worker, an inbox and the test runner, runs the suite, and exits with pytest's co
 is green, anything else is red.
 
 - **Watch it live** at <http://localhost:7900>: the browser, slowed down so a person can
-  follow it. Opening it is optional, and clicking in it cannot disturb a test.
-  `E2E_HEADLESS=1` runs at full speed without it.
+  follow it. It ends by showing the report email as it arrived, then the full report.
+  Opening it is optional, and clicking in it cannot disturb a test. `E2E_HEADLESS=1`
+  runs at full speed without it.
 - **Read the report** at `reports/latest.html` when the run ends. Every browser test has
   a video, and every failed check keeps what it saw: the email, the request and
   response, or the screen. The report is also mailed into the run's inbox and kept next

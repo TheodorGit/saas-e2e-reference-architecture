@@ -53,8 +53,10 @@ where=("  the report:  reports/latest.html"
 if [ "${E2E_HEADLESS:-0}" = "1" ]; then
   notice "Running headless (E2E_HEADLESS=1). When the run ends you will find:" "${where[@]}"
 elif start_live_view; then
+  live=1
   notice "Watch the UI tests live:  http://localhost:${VIEW_PORT}" \
-         "Or don't. When the run ends you will find:" "${where[@]}"
+         "It ends by showing the report email, then the report." \
+         "Or don't watch. When the run ends you will find:" "${where[@]}"
   PYTEST_ARGS+=(--headed --slowmo "$SLOWMO_MS")
 else
   # Better a headless run with results than every browser test failing.
@@ -66,6 +68,11 @@ fi
 
 python -m pytest "${PYTEST_ARGS[@]}"
 code=$?
+
+# A watched run ends on its result: the report email as it arrived, then the report.
+if [ "${live:-0}" = "1" ] && [ "${E2E_SHOW_REPORT_S:-30}" != "0" ]; then
+  python example/suite/show_report.py
+fi
 
 run=$(sed -n 's/.*url=\([^"]*\)\/report\.html.*/\1/p' reports/latest.html 2>/dev/null | head -1)
 if [ "$code" = "0" ]; then verdict="PASSED"; else verdict="FAILED (pytest exit code $code)"; fi

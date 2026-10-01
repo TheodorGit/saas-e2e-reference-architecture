@@ -13,6 +13,12 @@ The browser runs headed on a virtual screen in the test runner, slowed down
 live view cannot start, the run goes on headless and says so. `E2E_HEADLESS=1` skips it
 and runs at full speed; CI does.
 
+A watched run ends on its result: after the last test, the live view shows the report
+email as it arrived in the inbox, then the full report it attaches, each for
+`E2E_SHOW_REPORT_S` seconds (default 30, slowly scrolled; 0 skips it). This is
+`example/suite/show_report.py`, run by `entrypoint.sh`; it never changes the run's
+outcome.
+
 The containers stop with the run, so the inbox goes with them. The report mailed into
 it (to `qa-reports@example.com`, over plain SMTP - never through the app under test) is
 kept on disk too, as `email.html` next to the report.
@@ -45,6 +51,7 @@ Read by `docker-compose.yml`; set them in the shell before `docker compose up`.
 | `DEMO_ESP_BUGS` | (none) | Defects to inject, comma-separated; an unknown name stops the app at start-up |
 | `E2E_HEADLESS` | 0 | `1` runs the browser headless, without the live view |
 | `E2E_SLOWMO_MS` | 300 | How much each browser action is slowed down in the live view |
+| `E2E_SHOW_REPORT_S` | 30 | How long a watched run shows its report email, then its report; 0 skips it |
 | `E2E_MAIL_BUDGET_S` | 20 | How long the suite waits for an email to arrive |
 | `E2E_INGEST_BUDGET_S` | 20 | How long the suite waits for stats and billing to land |
 

@@ -70,6 +70,8 @@ services:
       # Headed and slowed down so a person can watch; E2E_HEADLESS=1 for CI.
       E2E_HEADLESS: ${E2E_HEADLESS:-0}
       E2E_SLOWMO_MS: ${E2E_SLOWMO_MS:-300}
+      # A watched run ends by showing its report email, then the report, this long each.
+      E2E_SHOW_REPORT_S: ${E2E_SHOW_REPORT_S:-30}
       # Sized to this app (mail in ~1s, stats in DEMO_ESP_INGEST_DELAY_S), not a real one.
       E2E_MAIL_BUDGET_S: ${E2E_MAIL_BUDGET_S:-20}
       E2E_INGEST_BUDGET_S: ${E2E_INGEST_BUDGET_S:-20}
