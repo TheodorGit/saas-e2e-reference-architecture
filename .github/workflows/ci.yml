@@ -46,6 +46,9 @@ jobs:
           python-version: "3.12"
       - run: pip install -e .
       - run: docker compose up --build --exit-code-from tests
+      # The test runner writes as root; give the reports back to this job's user.
+      - if: always()
+        run: sudo chown -R "$(id -u):$(id -g)" reports
       - run: python scripts/check_flag_run.py reports/clean
       - if: always()
         uses: actions/upload-artifact@v4
@@ -93,6 +96,9 @@ jobs:
             echo "::error::the suite passed with ${DEMO_ESP_BUGS} injected"
             exit 1
           fi
+      # The test runner writes as root; give the reports back to this job's user.
+      - if: always()
+        run: sudo chown -R "$(id -u):$(id -g)" reports
       - run: python scripts/check_flag_run.py "reports/${DEMO_ESP_BUGS}" --flag "${DEMO_ESP_BUGS}"
       - if: always()
         uses: actions/upload-artifact@v4
