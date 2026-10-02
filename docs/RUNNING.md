@@ -145,10 +145,11 @@ python -m http.server -d site
 
 `.devcontainer/` gives a Python 3.12 container with Docker-in-Docker, and opens with
 `.devcontainer/START_HERE.md`: the one command to run, and where the live view appears.
-Ports 8000 (Demo ESP App) and 8025 (Mailpit) are forwarded; port 7900, the live view
-of the UI tests, opens by itself in the editor's built-in browser as soon as a run
-starts it (a panel, not a pop-up a browser could block). Port 1025, Mailpit's SMTP, is
-for the app only and stays hidden; any other port appears quietly in the Ports tab.
+Ports 8000 (Demo ESP App) and 8025 (Mailpit) are forwarded and listed quietly; port
+7900, the live view of the UI tests, announces itself when a run starts it, with an
+Open in Browser button (a click, so no browser blocks the tab); the Ports tab's globe
+icon opens it too. Port 1025, Mailpit's SMTP, is for the app only and stays hidden; any
+other port appears quietly in the Ports tab.
 Creating the container installs the project and builds the images (`docker compose
 build`), so with a Codespaces prebuild set up on `main` that work is done before
 anyone opens one.
