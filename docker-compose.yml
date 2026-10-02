@@ -30,9 +30,6 @@ services:
       - demo-esp-data:/data
     ports:
       - "8000:8000"
-      # The test runner shares this service's network, so its live view is
-      # published here: watch the UI tests at http://localhost:7900.
-      - "7900:7900"
     depends_on:
       - mailpit
     healthcheck:
@@ -41,6 +38,21 @@ services:
       interval: 2s
       timeout: 3s
       retries: 30
+
+  # Watch the UI tests at http://localhost:7900. The runner shares the app's network,
+  # so this proxy reaches its viewer there; until the viewer is up it answers with a
+  # page that waits for it, so the address works from the first second.
+  live-view:
+    image: nginx:1.30-alpine
+    environment:
+      NGINX_ENTRYPOINT_QUIET_LOGS: "1"
+    ports:
+      - "7900:7900"
+    volumes:
+      - ./example/suite/live/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./example/suite/live/starting.html:/usr/share/nginx/live/starting.html:ro
+    depends_on:
+      - demo-esp
 
   worker:
     build:

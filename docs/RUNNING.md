@@ -9,8 +9,10 @@ every default is a demo value.
 
 The browser runs headed on a virtual screen in the test runner, slowed down
 (`E2E_SLOWMO_MS`, default 300 ms per action), and that screen is served at
-<http://localhost:7900> - watch-only, so a click there cannot disturb a test. If the
-live view cannot start, the run goes on headless and says so. `E2E_HEADLESS=1` skips it
+<http://localhost:7900> - watch-only, so a click there cannot disturb a test. The
+address answers from the start of the run: until the browser tests begin it shows a
+page that waits for them (`example/suite/live/`). If the live view cannot start, the
+run goes on headless and says so. `E2E_HEADLESS=1` skips it
 and runs at full speed; CI does.
 
 A watched run ends on its result: after the last test, the live view shows the report
@@ -25,8 +27,8 @@ kept on disk too, as `email.html` next to the report.
 
 ## How long it takes
 
-The first build downloads the Playwright image (browsers included) and installs the
-app, which takes a few minutes; Docker caches both, so later runs skip it. To demo it,
+The first build downloads a slim Python image and Chromium and installs the app, which
+takes a few minutes; Docker caches both, so later runs skip it. To demo it,
 run `docker compose build` beforehand. Measured on a Windows laptop with Docker Desktop:
 
 | Run | Time |
@@ -149,9 +151,10 @@ python -m http.server -d site
 `.devcontainer/` gives a Python 3.12 container with Docker-in-Docker, and opens with
 `.devcontainer/START_HERE.md`: the one command to run, and where the live view appears.
 Ports 8000 (Demo ESP App) and 8025 (Mailpit) are forwarded and listed quietly; port
-7900, the live view of the UI tests, announces itself when a run starts it, with an
-Open in Browser button (a click, so no browser blocks the tab); the Ports tab's globe
-icon opens it too. Port 1025, Mailpit's SMTP, is for the app only and stays hidden; any
+7900, the live view of the UI tests, announces itself when a run starts, with an Open
+in Browser button (a click, so no browser blocks the tab) - early, which is why it
+answers with a waiting page until the browser tests begin; the Ports tab's globe icon
+opens it too. Port 1025, Mailpit's SMTP, is for the app only and stays hidden; any
 other port appears quietly in the Ports tab.
 Creating the container installs the project and builds the images (`docker compose
 build`), so with a Codespaces prebuild set up on `main` that work is done before

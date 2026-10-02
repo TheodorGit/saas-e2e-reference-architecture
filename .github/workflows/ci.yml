@@ -8,10 +8,10 @@ jobs:
   secrets:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -24,8 +24,8 @@ jobs:
           - 8025:8025
           - 1025:1025
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
@@ -40,8 +40,8 @@ jobs:
     env:
       E2E_HEADLESS: "1"  # nobody watches CI: full speed, no live view
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: pip install -e .
@@ -51,7 +51,7 @@ jobs:
         run: sudo chown -R "$(id -u):$(id -g)" reports
       - run: python scripts/check_flag_run.py reports
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: report-clean
           path: reports/*-clean/
@@ -63,7 +63,7 @@ jobs:
     outputs:
       list: ${{ steps.matrix.outputs.list }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: matrix
         run: >-
           echo "list=$(python -c 'import json, example.suite.bug_matrix as m;
@@ -81,8 +81,8 @@ jobs:
       DEMO_ESP_BUGS: ${{ matrix.flag }}
       E2E_HEADLESS: "1"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: pip install -e .
@@ -101,7 +101,7 @@ jobs:
         run: sudo chown -R "$(id -u):$(id -g)" reports
       - run: python scripts/check_flag_run.py reports --flag "${DEMO_ESP_BUGS}"
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: report-${{ matrix.flag }}
           path: reports/*-${{ matrix.flag }}/
@@ -120,22 +120,22 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       # Each artifact holds one run folder (the wildcard kept it); both land in reports/.
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: report-clean
           path: reports
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: report-suppression_leak
           path: reports
       - run: python scripts/build_site.py --reports reports --red suppression_leak --out site
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
       - id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
