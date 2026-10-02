@@ -21,10 +21,10 @@ notice() {
 }
 
 wait_for_port() {
-  # Poll until the port accepts a connection (10 s budget).
+  # Poll until the port accepts a connection (60 s budget: a new Codespace starts slowly).
   python - "$1" <<'PY'
 import socket, sys, time
-port, deadline = int(sys.argv[1]), time.monotonic() + 10
+port, deadline = int(sys.argv[1]), time.monotonic() + 60
 while time.monotonic() < deadline:
     try:
         socket.create_connection(("127.0.0.1", port), timeout=0.5).close()

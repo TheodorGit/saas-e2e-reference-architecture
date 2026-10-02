@@ -7,7 +7,8 @@ docker compose up --build --exit-code-from tests
 ```
 
 **2. Watch it.** When the browser tests start, a notification appears at the bottom
-right: click **Open in Browser** to watch the live view. If you miss it, open the
+right: click **Open in Browser** to watch the live view. If it shows an error, the view
+is still starting: wait a few seconds and reload. If you miss the notification, open the
 **Ports** tab next to the terminal and click the globe icon on **7900 - Live UI tests**.
 The app (8000) and its inbox (8025) are listed there too, if you want to look around.
 
