@@ -1,10 +1,4 @@
-"""An automation: adding a tag starts a delayed email, and an unsubscribed contact
-gets nothing.
-
-Both contacts get the trigger tag, so only the unsubscribe can keep one of them
-out. The subscribed contact is the positive control: its copy arriving proves the
-automation ran, which is what makes the other's empty inbox mean something.
-"""
+"""An automation: adding a tag starts a delayed email, and an unsubscribed contact gets nothing."""
 from datetime import datetime
 
 import pytest
@@ -18,7 +12,7 @@ from framework.safety.guards import assert_owned
 
 pytestmark = pytest.mark.pipeline
 
-DELAY_S = 5  # the automation's delay: short, because this is a demo
+DELAY_S = 5
 OPEN = ("waiting", "sending")
 
 

@@ -19,8 +19,7 @@ class EmailBatchesPage:
             has=self.page.get_by_role("link", name=name, exact=True))
 
     def status(self, name: str) -> Locator:
-        """The status badge. The list polls and changes the badge's TEXT in place
-        (Queued -> Sending -> Sent): wait on the text, not on an element appearing."""
+        # The badge's text changes in place, so wait on the text.
         return self.row(name).get_by_test_id("status-badge")
 
     def wait_until_sent(self, name: str, timeout_s: float):
@@ -62,7 +61,6 @@ class WizardPage:
         self._next(4, "Schedule")
 
     def send_now(self) -> EmailBatchesPage:
-        """Ends on the email batches list, which shows the new email batch."""
         self.page.get_by_label("Send now").check()
         self.page.get_by_role("button", name="Send email batch").click()
         batches = EmailBatchesPage(self.page)

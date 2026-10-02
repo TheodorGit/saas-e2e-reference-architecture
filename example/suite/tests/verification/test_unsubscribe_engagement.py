@@ -1,10 +1,4 @@
-"""An unsubscribe is not engagement.
-
-Ingestion is in order, so once the marker open the run fired AFTER the unsubscribes
-is in the report, anything the unsubscribes caused is in it too. Then:
-  - an unsubscribe counted as a click: must be False
-  - a one-click unsubscribe counted as an open: product policy - observed and recorded
-"""
+"""An unsubscribe is not engagement."""
 import json
 
 import pytest
@@ -23,8 +17,7 @@ def test_unsubscribe_is_not_engagement(public_api, e2e_ledger, config, steps):
 
     for entry in sends:
         if not entry["unsubscribed"] or not entry["opened"]:
-            # The unsubscribe test stopped before its unsubscribes and marker were
-            # recorded: there is nobody to check, and that is not a pass.
+            # The unsubscribe test stopped early: nothing to check, and that is not a pass.
             steps.skip_step(f"{entry['name']}: unsubscribes", "no unsubscribe and marker were "
                             f"recorded; see {entry.get('test', 'the unsubscribe test')}",
                             expected="an unsubscribe is never counted as a click")

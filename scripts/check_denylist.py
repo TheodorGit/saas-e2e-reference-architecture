@@ -1,22 +1,9 @@
-"""Refuse any file that matches a denylist of identifiers that must never be committed.
+"""Refuses any file that matches the private identifier denylist.
 
-A suite that tests a real product touches real identifiers: the product's domains
-and hosts, account and customer ids, people's names and addresses. The denylist
-holds the ones that must never reach a repository - the product's, and any
-client's. It lives OUTSIDE the repo so it can never be committed itself:
+    python scripts/check_denylist.py <file> [<file> ...]
+    python scripts/check_denylist.py --all
 
-    E2E_DENYLIST=<path>          explicit location, or
-    ~/.saas-e2e-denylist.txt     the default
-
-One regex per line, matched case-insensitively. Blank lines and lines starting
-with '#' are ignored.
-
-Usage:
-    python scripts/check_denylist.py <file> [<file> ...]   # pre-commit passes staged files
-    python scripts/check_denylist.py --all                 # every git-tracked file
-
-A missing denylist is a FAILURE, never a pass: a guard that silently does
-nothing is worse than no guard.
+The denylist lives outside the repo: E2E_DENYLIST, or ~/.saas-e2e-denylist.txt.
 """
 import os
 import re
@@ -47,7 +34,6 @@ def tracked_files() -> list[str]:
 
 
 def read_text(path: Path):
-    """File contents as text, or None for binary or unreadable files."""
     try:
         data = path.read_bytes()
     except OSError:

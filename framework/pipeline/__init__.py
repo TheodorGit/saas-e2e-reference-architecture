@@ -1,1 +1,1 @@
-"""Stage ordering, run manifest, session ledger, run totals and replay."""
+"""The run pipeline: stages, ledger, manifest, replay, totals and assertion helpers."""

@@ -18,7 +18,6 @@ FOOTER_LINE = "You receive this because you subscribed to Demo ESP App."
 
 
 def render_variables(text: str, contact: dict, escape: bool) -> str:
-    """Replace each supported template variable with the contact's value."""
     def value(match):
         if match.group(1) == "first_name" and bugs.active("literal_template_variable"):
             return match.group(0)
@@ -28,7 +27,6 @@ def render_variables(text: str, contact: dict, escape: bool) -> str:
 
 
 def links_in(body_html: str) -> list[str]:
-    """Distinct trackable link targets, in order of first appearance."""
     seen = []
     for _, _, url in HREF.findall(body_html):
         if not url.lower().startswith("mailto:") and url not in seen:
@@ -51,7 +49,6 @@ def track_links(body_html: str, token: str, links: list[str]) -> str:
 
 
 def render(email: dict, contact: dict, token: str, links: list[str]) -> dict:
-    """One recipient's copy of `email` (an email batch or an automation)."""
     unsubscribe = unsubscribe_url(token)
     body = track_links(render_variables(email["body_html"], contact, escape=True), token, links)
     html_body = (

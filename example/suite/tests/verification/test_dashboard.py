@@ -24,7 +24,6 @@ def test_dashboard_deltas(app_page, e2e_ledger, baseline, config, steps):
     def read():
         dashboard.refresh()
         return dashboard.values()
-    # Billing lands asynchronously: poll until the balance settles on what the run spent.
     now, waited = poll_until(read, lambda v: v["credits"] - before["credits"] ==
                              expected["credits"], config.ingest_budget_s, 3)
 

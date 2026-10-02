@@ -3,8 +3,7 @@ import { badge, dropdown, fmt, h, iconButton, toast, when } from "../ui.js";
 
 const POLL_MS = 1500;
 
-// The list polls; each row keeps its badge element and only the TEXT changes
-// (Queued -> Sending -> Sent). A handle taken on the element stays valid.
+// Deliberate: the list polls and changes each badge's text in place.
 export async function emailBatchesView(root) {
   const rows = new Map();
   const body = h("tbody");
@@ -45,7 +44,6 @@ export async function emailBatchesView(root) {
   return () => clearInterval(timer);
 }
 
-// The wizard: audience -> message -> address suppression -> schedule.
 export async function wizardView(root) {
   const [tags, lists] = await Promise.all([get("/api/tags"),
     get("/api/address-suppression-lists")]);

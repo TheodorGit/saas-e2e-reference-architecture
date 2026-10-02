@@ -1,10 +1,4 @@
-"""Unsubscribing and resubscribing, the way a recipient does it: from the email.
-
-One recipient uses the public page linked in the footer, then resubscribes; the
-other uses RFC 8058 one-click, as a mail client would. Each status change is
-proven on the API. Whether an unsubscribe is miscounted as engagement is verified
-later, once stats have landed.
-"""
+"""Unsubscribing and resubscribing from the email's links."""
 import pytest
 
 from example.suite import evidence
@@ -54,13 +48,11 @@ def test_unsubscribe_and_resubscribe(anon_page, app_api, inbox, config, make_con
         return found
     copies = steps.step("both copies arrived", arrived, expected="one copy each")
 
-    # --- the public page, from the footer link --------------------------------------
     link = find_unsubscribe_link(inbox.html(copies[by_page].id), anchor_texts=("Unsubscribe",))
     prefs = PreferencesPage(anon_page)
     steps.step("open the footer link", lambda: prefs.open(link),
                expected="the public preferences page, no sign-in needed", ui=True)
-    # Each change is recorded once the API confirms it: a page can confirm a
-    # change the system never made, and the ledger must not believe it.
+    # Recorded once the API confirms it: a page can confirm a change that never happened.
     steps.step("unsubscribe on the page", prefs.unsubscribe,
                expected="the page confirms and shows the address unsubscribed", ui=True)
     steps.step("the API shows it unsubscribed",
@@ -77,7 +69,6 @@ def test_unsubscribe_and_resubscribe(anon_page, app_api, inbox, config, make_con
     record("contact.resubscribe", kinds.STATUS, name=f"resub-{by_page}", email=by_page,
            subscribed_delta=1)
 
-    # --- one-click, as a mail client does it -------------------------------------------
     def one_click():
         targets = list_unsubscribe_targets(inbox.headers(copies[by_click].id))
         url = next((t for t in targets if t.startswith(("https://", "http://"))), None)
@@ -94,7 +85,6 @@ def test_unsubscribe_and_resubscribe(anon_page, app_api, inbox, config, make_con
     record("contact.unsubscribe", kinds.STATUS, name=f"oneclick-{by_click}", email=by_click,
            subscribed_delta=-1)
 
-    # --- a marker the run owns, fired AFTER the unsubscribes -----------------------------
     def marker():
         fired = engage(inbox, {by_page: copies[by_page]}, TRACKERS, open_mail=True)
         assert not fired["failures"], "; ".join(fired["failures"])

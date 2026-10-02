@@ -1,9 +1,4 @@
-"""The framework stays product-agnostic.
-
-These are the rules that make framework/ a reference architecture rather than
-one product's test code: it never reaches into example/, and product meaning
-reaches it only through its documented seams, never as hardcoded vocabulary.
-"""
+"""The framework stays product-agnostic."""
 import ast
 import re
 from pathlib import Path
@@ -14,8 +9,6 @@ pytestmark = pytest.mark.unit
 
 FRAMEWORK = Path(__file__).resolve().parent.parent
 
-# Words that belong to the example product. The framework talks about runs,
-# steps, sends, recipients and ledger entries; it never names a product feature.
 PRODUCT_WORDS = re.compile(
     r"\b(broadcasts?|campaigns?|credits?|demo[ _-]?esp|newsletters?|email[ _-]?batch(es)?|"
     r"automations?)\b", re.IGNORECASE)

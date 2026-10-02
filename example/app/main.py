@@ -1,13 +1,4 @@
-"""The Demo ESP App's HTTP surface.
-
-    /                 the single-page app (static files, no build step)
-    /api/...          JSON for the app, behind the session cookie
-    /v1/...           the public JSON API, behind a Bearer token; /v1/ indexes it
-    /t/o, /t/c        open pixel and click tracker
-    /u/{token}        public unsubscribe/resubscribe page and one-click endpoint
-
-    uvicorn example.app.main:app
-"""
+"""The Demo ESP App's HTTP routes."""
 import base64
 import hmac
 import html
@@ -61,11 +52,9 @@ async def _not_found(_request, exc):
 
 
 def simulated_latency():
-    # Deliberate: a real backend is not instant, and the UI's async edges must show.
+    # Deliberate latency, so the UI's async edges show.
     time.sleep(SETTINGS.ui_latency_ms / 1000)
 
-
-# --- auth ---------------------------------------------------------------------
 
 def session_user(request: Request) -> str:
     token = request.cookies.get(SESSION_COOKIE, "")
@@ -122,8 +111,6 @@ def logout(request: Request):
 def me(user: str = Depends(session_user)):
     return {"email": user}
 
-
-# --- app API (session) ----------------------------------------------------------
 
 class NewContact(BaseModel):
     email: str
@@ -316,8 +303,6 @@ def usage():
         return logic.usage(conn)
 
 
-# --- public API (Bearer) ------------------------------------------------------------
-
 bearer = [Depends(api_client)]
 
 
@@ -394,7 +379,6 @@ if bugs.active("api_endpoint_without_test"):
 
 @app.get("/v1/", summary="Index of the documented endpoints")
 def v1_index():
-    """Public: built from the routes themselves, so it cannot drift from them."""
     endpoints = []
     for route in app.routes:
         if isinstance(route, APIRoute) and route.path.startswith("/v1/"):
@@ -404,8 +388,6 @@ def v1_index():
                                   "auth": "none" if route.path == "/v1/" else "bearer"})
     return {"name": "Demo ESP App public API", "version": "1", "endpoints": endpoints}
 
-
-# --- tracking and public pages ------------------------------------------------------
 
 def _delivery(conn, token: str):
     row = conn.execute("SELECT * FROM deliveries WHERE token = ?", (token,)).fetchone()
@@ -496,7 +478,6 @@ async def change_preferences(token: str, request: Request):
 
 @app.post("/u/{token}/one-click", include_in_schema=False)
 async def one_click(token: str, request: Request):
-    """RFC 8058: a mail client POSTs List-Unsubscribe=One-Click, no page, no login."""
     form = await request.form()
     if form.get("List-Unsubscribe") != "One-Click":
         raise HTTPException(400, "expected List-Unsubscribe=One-Click")
@@ -519,7 +500,6 @@ def landing():
 
 @app.get("/api/flags", include_in_schema=False)
 def flags():
-    """The active defect switches; the front end reads its own from here."""
     return {"bugs": sorted(bugs.ACTIVE)}
 
 

@@ -1,12 +1,4 @@
-"""Plain-language failure reasons for the report.
-
-A reason states ONLY what the failure proves. The test knows what it observed and
-how long it waited; it does not know why. No causes, no "probably", no "either X
-or Y": a guess in a status report is worse than no sentence at all, so an
-unrecognised exception gets no sentence and the raw error speaks for itself.
-
-Used when a step did not author its own `means=`.
-"""
+"""Plain-language failure reasons for the report."""
 
 # Playwright's expect() raises a plain AssertionError with these prefixes.
 _EXPECT_PREFIXES = ("Locator expected", "Page expected", "APIResponse expected")
@@ -31,13 +23,10 @@ def _for(name: str, text: str) -> str:
 
 
 def classify(exc: BaseException) -> str:
-    """A factual sentence for an exception, or '' when none can be said."""
     return _for(type(exc).__name__, str(exc).strip())
 
 
 def classify_failure_text(failure: str) -> str:
-    """The same, for a failure that happened outside any step, where only
-    pytest's text is left. pytest prefixes error lines with 'E'."""
     for line in (failure or "").splitlines():
         line = line.strip()
         if line.startswith("E "):
@@ -47,7 +36,6 @@ def classify_failure_text(failure: str) -> str:
 
 
 def first_error_line(failure: str) -> str:
-    """One readable line from pytest's failure text."""
     lines = [ln.rstrip() for ln in (failure or "").splitlines() if ln.strip()]
     errors = [ln.strip()[2:].strip() for ln in lines if ln.strip().startswith("E ")]
     if errors:

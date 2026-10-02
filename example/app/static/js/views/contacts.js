@@ -9,17 +9,15 @@ export async function contactsView(root) {
   const rowsById = new Map();
   let request = 0;
 
-  // --- toolbar: debounced search, roleless tag filter, export ------------------
   const search = h("input", { id: "contact-search", type: "search",
     placeholder: "Search by name or email" });
   const tagFilter = dropdown({ placeholder: "All tags", testid: "tag-filter",
     onChange: () => reload() });
   const exportLink = h("a", { class: "button", href: "/api/contacts/export" }, "Export CSV");
   const count = h("p", { class: "muted", "data-testid": "contacts-count" });
-  // The list reloads only after typing pauses; each keystroke alone does nothing.
+  // Deliberate: the list reloads only after typing pauses.
   search.addEventListener("input", debounce(() => reload(), SEARCH_DEBOUNCE_MS));
 
-  // --- add contact ---------------------------------------------------------------
   const fields = {
     email: h("input", { id: "new-email", type: "email", required: true }),
     first_name: h("input", { id: "new-first" }),
@@ -36,8 +34,7 @@ export async function contactsView(root) {
         last_name: (swap ? fields.first_name : fields.last_name).value,
         tags: fields.tags.value.split(",").map((t) => t.trim()).filter(Boolean),
       };
-      // The confirmation renders BEFORE the request finishes; it is corrected
-      // afterwards if the server refuses. It is not proof the contact exists.
+      // Deliberate: the confirmation shows before the request finishes.
       const note = toast("Contact saved", "success");
       addForm.hidden = true;
       try {
@@ -59,7 +56,6 @@ export async function contactsView(root) {
   const addButton = iconButton("person_add", "Add contact", { class: "primary",
     onclick: () => { addForm.hidden = false; fields.email.focus(); } });
 
-  // --- bulk tagging ----------------------------------------------------------------
   const bulkTag = h("input", { id: "bulk-tag" });
   const selectedCount = h("span", { "data-testid": "selected-count" });
   const bulkBar = h("div", { class: "bulkbar", hidden: true },
@@ -72,8 +68,7 @@ export async function contactsView(root) {
     const tag = bulkTag.value.trim();
     if (!tag || !selected.size) return;
     const ids = [...selected];
-    // Optimistic: the rows change now, marked pending, and are then re-read
-    // from the server, which is the only truth.
+    // Deliberate: rows change optimistically, then are re-read from the server.
     for (const id of ids) rowsById.get(id)?.optimistic(action, tag);
     try {
       const result = await post("/api/contacts/bulk-tag", { ids, tag, action });
@@ -86,7 +81,6 @@ export async function contactsView(root) {
     await reload();
   }
 
-  // --- table ---------------------------------------------------------------------
   const body = h("tbody");
   const listTable = h("table", { "aria-label": "Contacts" },
     h("thead", {}, h("tr", {}, ["", "Email", "Name", "Status", "Tags", ""].map((t) =>

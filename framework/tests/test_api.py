@@ -18,8 +18,6 @@ class FakeResponse:
 
 
 class FakeHttp:
-    """Answers by 'METHOD url'; raises for anything it does not know."""
-
     def __init__(self, answers: dict):
         self.answers = answers
         self.seen = []

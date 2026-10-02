@@ -1,9 +1,4 @@
-"""The Demo ESP App suite on the framework plugin.
-
-Fixtures here are product wiring only: where the app is, how to sign in, how a
-created thing is removed. Stage order, the ledger, steps, reports and
-destructive gating all come from the framework plugin.
-"""
+"""Fixtures that wire the Demo ESP App suite to the framework plugin."""
 import shutil
 import tempfile
 
@@ -29,7 +24,7 @@ STAGES = ("example/suite/tests/baseline/ = 0",
 
 
 def pytest_configure(config):
-    # The plugin's e2e_stages ini option, set here so it exists only with the plugin.
+    # Set here so the option exists only where the plugin is loaded.
     for line in STAGES:
         config.addinivalue_line("e2e_stages", line)
 
@@ -41,7 +36,6 @@ def config():
 
 @pytest.fixture(scope="session")
 def app_api(config):
-    """The signed-in app API. A stack that cannot be reached fails loudly."""
     try:
         requests.get(f"{config.base_url}/health", timeout=10).raise_for_status()
     except requests.RequestException as exc:
@@ -65,7 +59,6 @@ def inbox(config):
 
 @pytest.fixture
 def v1(api_recorder, config):
-    """The public API with a Bearer token, every call a recorded step."""
     http = requests.Session()
     http.headers["Authorization"] = f"Bearer {config.api_token}"
     return api_recorder(http, config.base_url)
@@ -73,13 +66,11 @@ def v1(api_recorder, config):
 
 @pytest.fixture
 def v1_anon(api_recorder, config):
-    """The public API without a token."""
     return api_recorder(requests.Session(), config.base_url, label="without a token: ")
 
 
 @pytest.fixture
 def record(e2e_ledger, request):
-    """ledger.record, stamped with the test that recorded it."""
     def write(action: str, kind: str, **fields):
         return e2e_ledger.record(action, kind, test=request.node.nodeid, **fields)
     return write
@@ -87,8 +78,6 @@ def record(e2e_ledger, request):
 
 @pytest.fixture
 def make_contact(app_api, record, e2e_ledger, entity_name, config):
-    """Factory: a run-owned contact created through the API, recorded and
-    registered for cleanup."""
     def make(slug: str, tags=(), first_name: str = "", last_name: str = "",
              status: str = "subscribed") -> dict:
         token = entity_name(slug)
@@ -110,13 +99,8 @@ def make_suppression(app_api, e2e_ledger, entity_name):
     return make
 
 
-# --- browser ----------------------------------------------------------------------
-
 def _page(browser, config, steps, request, cookie: str = None):
-    """A hand-built context and page with screen evidence (video, trace, a screen
-    per UI check), kept only when a UI check fails."""
     expect.set_options(timeout=UI_TIMEOUT_MS)
-    # Recorded outside the reports: a video is copied in only if it is evidence.
     video_dir = tempfile.mkdtemp(prefix="e2e-video-")
     context = browser.new_context(base_url=config.base_url, accept_downloads=True,
                                   record_video_dir=video_dir)
@@ -126,29 +110,23 @@ def _page(browser, config, steps, request, cookie: str = None):
     page = context.new_page()
     screen = tracing.Evidence(context, page, steps)
     yield page
-    # Closes the context, which finishes the video.
     screen.stop(tokens.run_dir(), tracing.failed(steps, request.node))
     shutil.rmtree(video_dir, ignore_errors=True)
 
 
 @pytest.fixture
 def app_page(browser, config, app_api, steps, request):
-    """A signed-in page (the login test signs in through the UI instead)."""
     yield from _page(browser, config, steps, request, cookie=app_api.session_cookie)
 
 
 @pytest.fixture
 def anon_page(browser, config, steps, request):
-    """A page with no session: a visitor, or a recipient following a link."""
     yield from _page(browser, config, steps, request)
 
 
-# --- cleanup ----------------------------------------------------------------------
-
 @pytest.fixture(scope="session", autouse=True)
 def cleanup(e2e_ledger):
-    """Remove what the run created and no failure preserved as evidence.
-    Depends on the ledger, so it runs before the ledger's final save."""
+    # Depends on the ledger, so it runs before the ledger's final save.
     yield
     ledger = e2e_ledger
     if ledger.replay_of:

@@ -24,7 +24,7 @@ data/
 .env.*
 !.env.example
 
-# AI-assistant working rules: kept local, not published
+# Local only
 AGENTS.md
 CLAUDE.md
 

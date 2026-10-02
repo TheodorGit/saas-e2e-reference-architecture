@@ -1,9 +1,4 @@
-"""Validating one address: billed, free again inside the free window, billed after it.
-
-The free window is a ROLLING window, so whether a validation is free is decided per
-action from the run's own clock, never hardcoded. Too close to the edge to
-call, the run observes what was charged and records that instead.
-"""
+"""Validating one address: billed, free inside the free window, billed after it."""
 import time
 from datetime import UTC, datetime
 
@@ -17,8 +12,8 @@ from framework.polling import poll_until
 
 pytestmark = pytest.mark.pipeline
 
-VALIDATION_COST = 5  # the product's price for one billed validation
-CLOCK_STEP_BUDGET_S = 10  # how far behind the wall clock may fall during the sleep
+VALIDATION_COST = 5
+CLOCK_STEP_BUDGET_S = 10
 
 
 def test_validate_single_address(app_page, config, entity_name, record, steps):

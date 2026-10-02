@@ -1,1 +1,1 @@
-"""UI conventions: page base, roleless-widget components, polling helpers."""
+"""UI helpers: accessible-name patterns and screen evidence."""

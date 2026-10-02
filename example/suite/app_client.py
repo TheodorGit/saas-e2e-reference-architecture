@@ -1,9 +1,4 @@
-"""The Demo ESP App's JSON surfaces, as the suite reads them.
-
-Two clients: the app API behind the session cookie (what the UI itself calls),
-and the public API behind a Bearer token. Verification reads through these to
-prove what the UI did on a surface other than the UI.
-"""
+"""The Demo ESP App's JSON surfaces, as the suite reads them."""
 import requests
 
 from framework.delivery.content_checks import UnsubscribeStandard
@@ -11,7 +6,6 @@ from framework.delivery.links import TrackerPatterns
 
 TIMEOUT = 30
 
-# How the Demo ESP App's trackers and unsubscribe standard look in a delivered email.
 TRACKERS = TrackerPatterns(open_pixel=r"/t/o/[\w-]+\.gif$", click=r"/t/c/[\w-]+/\d+$")
 UNSUBSCRIBE = UnsubscribeStandard(footer_anchor_texts=("Unsubscribe",),
                                   header_phrase="No longer want these emails?")
@@ -39,8 +33,6 @@ class _Client:
 
 
 class AppApi(_Client):
-    """The signed-in user's API."""
-
     def __init__(self, base_url: str, email: str, password: str):
         super().__init__(base_url)
         self.call("POST", "/api/login", json={"email": email, "password": password})
@@ -109,8 +101,6 @@ class AppApi(_Client):
 
 
 class PublicApi(_Client):
-    """The public API, Bearer-authenticated."""
-
     def __init__(self, base_url: str, token: str):
         super().__init__(base_url)
         self.http.headers["Authorization"] = f"Bearer {token}"

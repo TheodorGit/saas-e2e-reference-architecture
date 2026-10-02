@@ -3,7 +3,6 @@ import pytest
 
 @pytest.fixture
 def baseline(e2e_ledger):
-    """The baseline readings; verification without them has nothing to compare."""
     missing = [k for k in ("journal_max_id", "balance", "dashboard")
                if k not in e2e_ledger.snapshots]
     if missing:

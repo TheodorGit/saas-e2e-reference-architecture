@@ -1,6 +1,5 @@
 // Small DOM helpers and the app's shared widgets.
 
-// Create an element: h("button", {class: "x", onclick: fn}, "text", child).
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
   for (const [key, value] of Object.entries(attrs)) {
@@ -32,7 +31,6 @@ export function when(iso) {
   return iso ? new Date(iso).toISOString().replace("T", " ").slice(0, 19) + " UTC" : "";
 }
 
-// A toast in the live region; returns it so the caller can change it later.
 export function toast(message, kind = "info") {
   const el = h("div", { class: `toast ${kind}`, text: message });
   document.getElementById("toasts").append(el);
@@ -45,15 +43,13 @@ export function setToast(el, message, kind) {
   el.className = `toast ${kind}`;
 }
 
-// Deliberately built the way many real icon buttons are: the icon is a font
-// ligature WORD inside the button, not hidden from assistive tech, so it becomes
-// part of the accessible name ("delete Delete").
+// Deliberate: the icon word is part of the button's accessible name ("delete Delete").
 export function iconButton(icon, label, attrs = {}) {
   return h("button", { type: "button", ...attrs }, h("span", { class: "icon", text: icon }),
     label ? " " + label : "");
 }
 
-// A status badge that keeps its element: updates change its TEXT and class only.
+// Deliberate: updates change the badge's text in place, never the element.
 export function badge(status) {
   const el = h("span", { class: "badge", "data-testid": "status-badge" });
   const update = (value) => {
@@ -64,8 +60,7 @@ export function badge(status) {
   return { el, update };
 }
 
-// A custom dropdown with NO ARIA roles: no combobox, no listbox, no option.
-// Role-based locators cannot see it; a page object has to go by its text.
+// Deliberate: no ARIA roles, so role-based locators cannot find it.
 export function dropdown({ placeholder, options = [], value = "", onChange, testid }) {
   let current = value;
   const toggle = h("div", { class: "dropdown-toggle", tabindex: "0" });
@@ -96,7 +91,6 @@ export function dropdown({ placeholder, options = [], value = "", onChange, test
   return { el: root, setOptions, get value() { return current; } };
 }
 
-// An in-page confirmation dialog (never window.confirm).
 export function confirmDialog({ title, message, confirmIcon, confirmLabel }) {
   return new Promise((resolve) => {
     const close = (answer) => { backdrop.remove(); resolve(answer); };

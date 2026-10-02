@@ -8,9 +8,7 @@ const PANELS = [
   ["batches_sent", "Email batches sent"],
 ];
 
-// Panels paint progressively: each label renders at once, its number only when
-// the data arrives. A test that reads the panel as soon as the label shows reads
-// the placeholder.
+// Deliberate: each label renders at once, its number only when the data arrives.
 export async function dashboardView(root) {
   const values = {};
   const grid = h("div", { class: "panels" }, PANELS.map(([key, label]) => {

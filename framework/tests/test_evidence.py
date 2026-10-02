@@ -1,4 +1,4 @@
-"""Evidence of the kind each failed check was about, and nothing else."""
+"""Evidence: screens, attachments, file names and report links."""
 import json
 
 import pytest
@@ -54,8 +54,6 @@ class FakeVideo:
 
 
 class FakePage:
-    """Each screenshot shows a new screen, unless `screens` says otherwise."""
-
     def __init__(self, screens=None, url="http://app/"):
         self.shots = 0
         self.screens = list(screens or [])
@@ -77,8 +75,6 @@ def browser_test(page=None):
     return context, page, steps, tracing.Evidence(context, page, steps)
 
 
-# --- screens: UI checks only ---------------------------------------------------
-
 def test_only_ui_checks_get_a_screen_and_only_once_a_page_is_open():
     context, page, steps, ui = browser_test(FakePage(url="about:blank"))
     steps.step("the audience is ours", lambda: None, "ours", ui=True)
@@ -97,8 +93,6 @@ def test_an_unchanged_screen_is_skipped_but_a_failed_one_is_always_kept():
     steps.soft_step("the chips show the server's truth", fail("still pending"), "truth", ui=True)
     assert [name for name, _ in ui.shots] == ["01 screen.png", "03 screen.png"]
 
-
-# --- when screen evidence is kept ------------------------------------------------
 
 def test_a_failed_ui_check_keeps_trace_and_screens_as_evidence(tmp_path):
     _, page, steps, ui = browser_test()
@@ -143,8 +137,6 @@ def test_a_pass_keeps_only_its_video(tmp_path):
     assert not (tmp_path / "evidence").exists()
     assert [p.name for p in (tmp_path / "videos").iterdir()] == ["test_send.webm"]
 
-
-# --- what a failed check saw -------------------------------------------------------
 
 def test_a_failed_check_keeps_what_it_saw_and_a_passed_one_keeps_nothing(tmp_path):
     steps = StepRecorder("demo", NODEID)
@@ -192,8 +184,6 @@ def test_two_tests_with_one_name_get_two_folders(tmp_path):
     assert (first.name, second.name) == ("test_send", "test_send_2")
 
 
-# --- the report ----------------------------------------------------------------------
-
 def test_the_report_links_each_check_to_its_own_evidence(tmp_path):
     _, _, steps, ui = browser_test()
     steps.step("the list shows it sent", lambda: None, "sent", ui=True)
@@ -228,8 +218,6 @@ def test_the_report_links_each_check_to_its_own_evidence(tmp_path):
         < report.index("the suppressed contact got nothing") < report.index(email), \
         "evidence is not in its own check's row"
 
-
-# --- short names, and the index that says what they belong to -------------------------
 
 def test_a_long_check_sentence_never_reaches_a_file_name(tmp_path):
     steps = StepRecorder("demo", NODEID)

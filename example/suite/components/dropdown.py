@@ -1,10 +1,4 @@
-"""The app's custom dropdown, which exposes NO ARIA roles.
-
-There is no combobox, listbox or option to find by role, and the placeholder
-text appears twice (the toggle and the first, hidden, menu item), so text alone
-is ambiguous. The container has a test id; inside it, the toggle and items are
-reached by class - CSS as the last resort, because nothing else identifies them.
-"""
+"""The app's custom dropdown, which has no ARIA roles."""
 import re
 
 from playwright.sync_api import Locator, Page, expect
@@ -21,7 +15,6 @@ class RolelessDropdown:
             has_text=re.compile(rf"^{re.escape(text)}$"))
 
     def choose(self, option: str):
-        """Pick an option; ends when the toggle shows it and the menu is closed."""
         self.toggle.click()
         expect(self.menu).to_be_visible()
         self._item(option).click()
@@ -29,7 +22,6 @@ class RolelessDropdown:
         expect(self.menu).to_be_hidden()
 
     def options(self) -> list[str]:
-        """Every option offered, read with the menu open, then closed again."""
         self.toggle.click()
         expect(self.menu).to_be_visible()
         texts = [t.strip() for t in self.menu.locator(".dropdown-item").all_text_contents()]

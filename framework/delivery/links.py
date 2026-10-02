@@ -1,13 +1,4 @@
-"""Links in delivered mail, and engagement the run fires itself.
-
-A tracking system counts an open only when its pixel is fetched and a click only
-when a tracked link is. Firing those requests from the run turns engagement into
-numbers the run OWNS, recorded against the address whose copy was engaged: a
-count can then always be traced back to the contacts that produced it, and a
-surplus to someone who is not the run.
-
-Tracker URL shapes are product-specific, so they are passed in as patterns.
-"""
+"""Links in delivered mail, and the opens and clicks the run fires itself."""
 import re
 from dataclasses import dataclass
 
@@ -26,12 +17,11 @@ _SPACE = re.compile(r"\s+")
 
 @dataclass(frozen=True)
 class TrackerPatterns:
-    open_pixel: str   # regex matching the open-tracking image URL
-    click: str        # regex matching a click-tracked link
+    open_pixel: str
+    click: str
 
 
 def anchors(html: str) -> list[tuple[str, str]]:
-    """Every (href, visible text) in the body."""
     return [(href, _SPACE.sub(" ", _TAG.sub("", text)).strip())
             for href, text in _ANCHOR.findall(html or "")]
 
@@ -44,7 +34,6 @@ def find_open_pixel(html: str, patterns: TrackerPatterns) -> str | None:
 
 
 def find_link(html: str, text: str) -> str | None:
-    """The href of the first anchor whose visible text contains `text`."""
     return next((href for href, label in anchors(html) if text in label), None)
 
 
@@ -53,10 +42,7 @@ def is_tracked(href: str, patterns: TrackerPatterns) -> bool:
 
 
 def find_unsubscribe_link(html: str, anchor_texts=(), context_phrases=()) -> str | None:
-    """The unsubscribe link, found by what the reader sees, not by URL shape:
-    tracked links are opaque, so the anchor text is the only reliable signal.
-    Tries configured anchor texts, then 'unsubscribe' in the text, then an
-    anchor that closes a sentence starting with one of `context_phrases`."""
+    # Tracked links are opaque, so the unsubscribe link is found by its text.
     wanted = {t.strip().lower() for t in anchor_texts if t.strip()}
     for href, label in anchors(html):
         if href.lower().startswith("mailto:"):
@@ -72,8 +58,6 @@ def find_unsubscribe_link(html: str, anchor_texts=(), context_phrases=()) -> str
 
 
 def fire(url: str, timeout: float = 15) -> dict:
-    """GET a tracker the way a mail client would. Never raises: the result
-    says what happened, and the caller decides whether that is a failure."""
     try:
         response = requests.get(url, timeout=timeout, headers={"User-Agent": BROWSER_UA})
         return {"url": url, "status": response.status_code,
@@ -85,12 +69,7 @@ def fire(url: str, timeout: float = 15) -> dict:
 
 def engage(inbox: MailClient, copies: dict[str, Message], patterns: TrackerPatterns,
            open_mail: bool = True, click_text: str = None) -> dict:
-    """Open and/or click each recipient's own copy, and say WHO was engaged.
-
-    Returns {"opened": [...], "clicked": [...], "failures": [...]}. Counts are
-    len() of the address lists, so a count and its addresses cannot disagree.
-    A fetch that failed is reported as a failure, never counted as engagement.
-    """
+    """Opens and clicks each recipient's own copy; returns who was engaged."""
     opened, clicked, failures = [], [], []
     for address, message in sorted(copies.items()):
         body = inbox.html(message.id)

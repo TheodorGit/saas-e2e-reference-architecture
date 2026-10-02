@@ -1,12 +1,4 @@
-"""The Mailpit adapter against a real Mailpit.
-
-Needs a running Mailpit (the example's docker compose starts one). Skips, with
-the reason stated, when none is reachable - it never passes without one.
-
-    E2E_MAILPIT_URL   default http://localhost:8025
-    E2E_SMTP_HOST     default localhost
-    E2E_SMTP_PORT     default 1025
-"""
+"""The Mailpit adapter against a real Mailpit; skips when none is reachable."""
 import os
 import smtplib
 import uuid

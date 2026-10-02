@@ -9,7 +9,6 @@ class ConfirmDialog:
         self.dialog = page.get_by_role("dialog", name=title)
 
     def confirm(self, button: str):
-        """Press the confirming button; ends when the dialog is gone."""
         expect(self.dialog).to_be_visible()
         # The button's accessible name carries its icon word ("delete Delete contact").
         self.dialog.get_by_role("button", name=label_pattern(button)).click()

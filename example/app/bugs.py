@@ -1,10 +1,4 @@
-"""Defect switches: each one injects a class of defect the suite must catch.
-
-    DEMO_ESP_BUGS=suppression_leak,double_billing
-
-An unknown name stops the app at startup: a mistyped flag must never run a
-clean app while the run believes it is testing a defect.
-"""
+"""Defect switches the suite must catch, set with DEMO_ESP_BUGS."""
 import os
 
 FLAGS = {

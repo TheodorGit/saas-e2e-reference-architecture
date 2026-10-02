@@ -1,11 +1,3 @@
-# Demo ESP App, its worker, a Mailpit inbox and the test runner. One command:
-#
-#     docker compose up --build --exit-code-from tests
-#
-# runs the suite - watch the UI tests live at http://localhost:7900 - writes
-# reports/<run id>-<bugs or clean>/ (reports/latest.html opens the newest), and exits
-# with pytest's code. E2E_HEADLESS=1 runs it headless. No real account, key or .env is
-# needed. DEMO_ESP_BUGS=<flag>[,<flag>] injects defects (example/app/bugs.py).
 services:
   mailpit:
     image: axllent/mailpit
@@ -39,9 +31,7 @@ services:
       timeout: 3s
       retries: 30
 
-  # Watch the UI tests at http://localhost:7900. The runner shares the app's network,
-  # so this proxy reaches its viewer there; until the viewer is up it answers with a
-  # page that waits for it, so the address works from the first second.
+  # Answers on 7900 from the start, with a waiting page until the runner's viewer is up.
   live-view:
     image: nginx:1.30-alpine
     environment:
@@ -70,8 +60,7 @@ services:
     build:
       context: .
       dockerfile: example/suite/Dockerfile
-    # Shares the app's network namespace: localhost:8000 is the app for the browser
-    # AND for the links inside the emails, exactly as on a developer's machine.
+    # The app's network, so localhost:8000 works for the browser and for links in emails.
     network_mode: "service:demo-esp"
     environment:
       DEMO_ESP_URL: http://localhost:8000
@@ -80,15 +69,12 @@ services:
       E2E_RUN_LABEL: ${DEMO_ESP_BUGS:-clean}
       E2E_LATEST_PAGE: /srv/reports/latest.html
       E2E_ENVIRONMENT: "docker compose, bugs: ${DEMO_ESP_BUGS:-none}"
-      # Headed and slowed down so a person can watch; E2E_HEADLESS=1 for CI.
       E2E_HEADLESS: ${E2E_HEADLESS:-0}
       E2E_SLOWMO_MS: ${E2E_SLOWMO_MS:-300}
-      # A watched run ends by showing its report email, then the report, this long each.
       E2E_SHOW_REPORT_S: ${E2E_SHOW_REPORT_S:-30}
-      # Sized to this app (mail in ~1s, stats in DEMO_ESP_INGEST_DELAY_S), not a real one.
+      # Sized to this app; a real product needs longer.
       E2E_MAIL_BUDGET_S: ${E2E_MAIL_BUDGET_S:-20}
       E2E_INGEST_BUDGET_S: ${E2E_INGEST_BUDGET_S:-20}
-      # The report is mailed too - into Mailpit, never through the app under test.
       E2E_REPORT_TO: qa-reports@example.com
       E2E_SMTP_HOST: mailpit
       E2E_SMTP_PORT: "1025"

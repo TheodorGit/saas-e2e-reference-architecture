@@ -1,86 +1,79 @@
 # Running in detail
 
-The [README](../README.md#run-it-locally) covers running the suite, watching it and breaking it
-on purpose. This is the rest: what happens underneath, how long it takes, the settings,
-and how to work on the suite. Nothing needs a real account, key or hand-filled `.env`:
-every default is a demo value.
+The [README](../README.md#run-it-locally) covers running the suite, watching it and
+switching defects on. This page covers the rest. Every setting has a demo default, so no
+account, key or `.env` file is needed.
 
 ## The live view
 
-The browser runs headed on a virtual screen in the test runner, slowed down
-(`E2E_SLOWMO_MS`, default 300 ms per action), and that screen is served at
-<http://localhost:7900> - watch-only, so a click there cannot disturb a test. The
-address answers from the start of the run: until the browser tests begin it shows a
-page that waits for them (`example/suite/live/`). If the live view cannot start, the
-run goes on headless and says so. `E2E_HEADLESS=1` skips it
-and runs at full speed; CI does.
+The browser runs headed on a virtual screen in the test runner, slowed down by
+`E2E_SLOWMO_MS` (default 300 ms per action). The screen is served at
+<http://localhost:7900>, view-only. Until the browser tests start, that address shows a
+waiting page (`example/suite/live/`). If the live view cannot start, the run continues
+headless and says so. `E2E_HEADLESS=1` turns it off; CI does.
 
-A watched run ends on its result: after the last test, the live view shows the report
-email as it arrived in the inbox, then the full report it attaches, each for
-`E2E_SHOW_REPORT_S` seconds (default 30, slowly scrolled; 0 skips it). This is
-`example/suite/show_report.py`, run by `entrypoint.sh`; it never changes the run's
-outcome.
+After the last test, the live view shows the report email, then the full report, each
+for `E2E_SHOW_REPORT_S` seconds (default 30; 0 skips it). This is
+`example/suite/show_report.py`, started by `entrypoint.sh`. It does not affect the
+run's result.
 
-The containers stop with the run, so the inbox goes with them. The report mailed into
-it (to `qa-reports@example.com`, over plain SMTP - never through the app under test) is
-kept on disk too, as `email.html` next to the report.
+The inbox stops with the containers. The report is mailed to `qa-reports@example.com`
+over plain SMTP, not through the app, and saved as `email.html` next to the report.
 
 ## How long it takes
 
 The first build downloads a slim Python image and Chromium and installs the app, which
-takes a few minutes; Docker caches both, so later runs skip it. To demo it,
-run `docker compose build` beforehand. Measured on a Windows laptop with Docker Desktop:
+takes a few minutes. Docker caches it, so later runs skip it. Before a demo, run
+`docker compose build`. Measured on a Windows laptop with Docker Desktop:
 
 | Run | Time |
 |---|---|
-| Clean, with the live view (the default; slowed down to be watched) | about 90 s |
+| Clean, with the live view (the default) | about 90 s |
 | Clean, headless | about 60 s |
 | A defect switched on, headless | 1 to 2 minutes |
 
-A red run takes longer because some checks wait for something that never comes: "not
-arrived yet" and "never arriving" look the same until the waiting budget runs out. A
-clean run never waits that long - every wait returns as soon as its condition holds.
+A red run is slower because some checks wait for something that never arrives, until
+their time budget runs out. A clean run moves on as soon as each condition holds.
 
 ## Settings
 
-Read by `docker-compose.yml`; set them in the shell before `docker compose up`.
+Set these in the shell before `docker compose up`.
 
 | Variable | Default | What it does |
 |---|---|---|
 | `DEMO_ESP_INGEST_DELAY_S` | 5 | Stats and billing land this long after the event |
-| `DEMO_ESP_VALIDATION_FREE_WINDOW_S` | 20 | Re-validating an address inside this window is free; the suite waits it out once |
-| `DEMO_ESP_UI_LATENCY_MS` | 300 | Simulated server latency on the app's read endpoints |
-| `DEMO_ESP_BUGS` | (none) | Defects to inject, comma-separated; an unknown name stops the app at start-up |
+| `DEMO_ESP_VALIDATION_FREE_WINDOW_S` | 20 | Re-validating an address inside this window is free |
+| `DEMO_ESP_UI_LATENCY_MS` | 300 | Simulated latency on the app's read endpoints |
+| `DEMO_ESP_BUGS` | (none) | Defects to switch on, comma-separated; an unknown name stops the app |
 | `E2E_HEADLESS` | 0 | `1` runs the browser headless, without the live view |
-| `E2E_SLOWMO_MS` | 300 | How much each browser action is slowed down in the live view |
-| `E2E_SHOW_REPORT_S` | 30 | How long a watched run shows its report email, then its report; 0 skips it |
-| `E2E_MAIL_BUDGET_S` | 20 | How long the suite waits for an email to arrive |
-| `E2E_INGEST_BUDGET_S` | 20 | How long the suite waits for stats and billing to land |
+| `E2E_SLOWMO_MS` | 300 | Delay per browser action in the live view |
+| `E2E_SHOW_REPORT_S` | 30 | How long a watched run shows the report email and the report; 0 skips it |
+| `E2E_MAIL_BUDGET_S` | 20 | How long the suite waits for an email |
+| `E2E_INGEST_BUDGET_S` | 20 | How long the suite waits for stats and billing |
 
-The two budgets are sized to the demo app, where mail arrives in about a second and
-stats in `DEMO_ESP_INGEST_DELAY_S`. Pointed at a real product, the suite's own default
-is 60 s each (`example/suite/config.py`, with `E2E_MAX_WINDOW_WAIT_S` and
+The two budgets suit the demo app. The suite's own default for a real product is 60 s
+each (`example/suite/config.py`, which also has `E2E_MAX_WINDOW_WAIT_S` and
 `E2E_AUDIENCE_CAP`).
 
-## Holding a run to the bug matrix
+## Checking a run against the bug matrix
 
-Which test must catch each defect is `example/suite/bug_matrix.py`. To hold a finished
-run to it (needs Python 3.11+ on the host and `pip install -e .`):
+`example/suite/bug_matrix.py` names the test that must catch each defect. To check a
+finished run against it (needs Python 3.11+ and `pip install -e .`):
 
 ```
 python scripts/check_flag_run.py reports
 python scripts/check_flag_run.py reports --flag suppression_leak
 ```
 
-It takes the newest finished run for the flag (or the newest clean run), sorts every
-red test into the flag's guard (red at its declared check), a declared impact of the
-flag (with the reason), or a SEPARATE DEFECT - which fails the check - and writes the
-verdict to `matrix_check.txt` next to the report.
+It takes the newest run for that flag (or the newest clean run) and sorts each failed
+test into: the flag's guard (failed at its declared check), a declared impact of the
+flag, or a separate defect, which fails the check. The result is written to
+`matrix_check.txt` next to the report.
 
-## Iterating on the suite
+## Working on the suite
 
-Keep the stack up and run pytest in the runner with the working tree mounted, so edits
-apply without rebuilding:
+Keep the app running and run pytest in the runner with the working tree mounted, so
+edits apply without a rebuild:
 
 ```
 docker compose up -d --build demo-esp worker mailpit
@@ -88,10 +81,10 @@ docker compose run --rm -v "${PWD}:/srv" tests python -m pytest example/suite -k
 ```
 
 The app is at <http://localhost:8000> (sign in as `demo@demo-esp.test` /
-`demo-esp-password`), the inbox at <http://localhost:8025>; the public API index is
-<http://localhost:8000/v1/>, and its token is `demo-api-token`.
+`demo-esp-password`) and the inbox at <http://localhost:8025>. The public API index is
+<http://localhost:8000/v1/>, with the token `demo-api-token`.
 
-Stop and forget everything, database included:
+To stop everything and delete the database:
 
 ```
 docker compose down -v
@@ -99,8 +92,8 @@ docker compose down -v
 
 ## Framework tests
 
-No Docker needed; the one live test against Mailpit skips (and says so) when none is
-reachable.
+These need no Docker. The one test against a real Mailpit is skipped when none is
+running.
 
 ```
 python -m venv .venv
@@ -111,35 +104,33 @@ python -m venv .venv
 
 ## Reports
 
-Each run writes one folder, `reports/<run id>-<clean or flags>/`, where the run id is
-the date and time plus a short random part (`1002_1514ab12-suppression_leak`):
+Each run writes one folder, `reports/<run id>-<clean or flags>/`. The run id is the date
+and time plus a short random part, e.g. `1002_1514ab12-suppression_leak`.
 
 | File | What |
 |---|---|
-| `report.html` | Full detail; failures open, passes collapsed |
-| `email.html` | The mailed body: failures first, mail-client-safe markup |
-| `summary.json` | Machine-readable verdict and counts |
-| `manifest.json` | The authority on which tests ran and how each ended |
+| `report.html` | The full report; failures expanded, passes collapsed |
+| `email.html` | The mailed report |
+| `summary.json` | Verdict and counts |
+| `manifest.json` | Which tests ran and how each ended |
 | `ledger.json` | What the run did, spent and created |
 | `steps__*.json` | Every recorded step, per test |
-| `videos/` | A video of every browser test, pass or fail, linked from its test in the report |
-| `evidence/<test>/` | What each failed check saw, as `NN <what it is>.ext` numbered by check (`06 the email they received.html`): the email for an inbox check, the request and response for an API check, the rows for a reconciliation; for a failed screen check, `NN screen.png` plus `00 trace.zip` (open with `playwright show-trace`) |
-| `evidence/<test>/test.txt` | The test, then every check with its number and result, so each file's number says which check it belongs to |
-| `matrix_check.txt` | The bug-matrix verdict, when `check_flag_run.py` was run |
+| `videos/` | A video of every browser test |
+| `evidence/<test>/` | What each failed check saw, named `NN <what it is>.ext` by check number (e.g. `06 the email they received.html`). A failed screen check adds `NN screen.png` and `00 trace.zip` (open with `playwright show-trace`) |
+| `evidence/<test>/test.txt` | The test and every check, with its number and result |
+| `matrix_check.txt` | The bug-matrix result, when `check_flag_run.py` was run |
 
 ## CI
 
-`.github/workflows/ci.yml` runs, in order: a secrets scan; the framework tests (with a
-Mailpit service, so the live test runs); the example against a clean app (must be
-green); then one run per flag in the bug matrix, in parallel (each must be red at its
-guard, with no separate defect). Every run's report folder is uploaded as an artifact,
-red or green.
+`.github/workflows/ci.yml` runs a secrets scan, the framework tests (with a Mailpit
+service), the example against the clean app (must pass), then one run per defect in
+parallel (each must fail at its guard, with no separate defect). Every run's report
+folder is uploaded as an artifact.
 
-On a push to `main`, once all of that held, a last job publishes the sample-report site
-to GitHub Pages: `scripts/build_site.py` copies the clean run and the `suppression_leak`
-run whole (report, videos, evidence) and adds a landing page. A red build never
-replaces the published site. It needs one repository setting: Settings > Pages >
-Source: GitHub Actions. To preview it locally (Windows included):
+On a push to `main`, after all of that passes, the last job publishes the sample-report
+site to GitHub Pages: `scripts/build_site.py` copies the clean run and the
+`suppression_leak` run and adds a landing page. A failed build leaves the published site
+as it was. It needs Settings > Pages > Source: GitHub Actions. To preview it locally:
 
 ```
 python scripts/build_site.py --reports reports --red suppression_leak --out site
@@ -148,14 +139,13 @@ python -m http.server -d site
 
 ## Codespaces
 
-`.devcontainer/` gives a Python 3.12 container with Docker-in-Docker, and opens with
-`.devcontainer/START_HERE.md`: the one command to run, and where the live view appears.
-Ports 8000 (Demo ESP App) and 8025 (Mailpit) are forwarded and listed quietly; port
-7900, the live view of the UI tests, announces itself when a run starts, with an Open
-in Browser button (a click, so no browser blocks the tab) - early, which is why it
-answers with a waiting page until the browser tests begin; the Ports tab's globe icon
-opens it too. Port 1025, Mailpit's SMTP, is for the app only and stays hidden; any
-other port appears quietly in the Ports tab.
-Creating the container installs the project and builds the images (`docker compose
-build`), so with a Codespaces prebuild set up on `main` that work is done before
-anyone opens one.
+`.devcontainer/` is a Python 3.12 container with Docker-in-Docker. It opens
+`.devcontainer/START_HERE.md`, which has the command to run. Ports 8000 (the app) and
+8025 (Mailpit) are forwarded without a notification. Port 7900, the live view, shows a
+notification with an Open in Browser button when a run starts; the button is a click,
+so browsers do not block the new tab. The notification can come before the browser
+tests start, which is why 7900 shows a waiting page until then. Port 1025 (Mailpit's
+SMTP) is not forwarded.
+
+Creating the container installs the project and builds the images, so with a
+Codespaces prebuild on `main` that work is done before anyone opens one.

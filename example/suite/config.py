@@ -11,16 +11,16 @@ def _int(name: str, default: int) -> int:
 
 @dataclass(frozen=True)
 class SuiteConfig:
-    base_url: str           # the app, as the browser and the email links reach it
+    base_url: str
     mailpit_url: str
     email: str
     password: str
     api_token: str
-    inbox: str              # every test recipient is a plus-alias of this address
-    audience_cap: int       # safety stop: never send to more than this
-    mail_budget_s: int      # how long a delivery may take to arrive
-    ingest_budget_s: int    # how long stats and billing may take to land
-    max_window_wait_s: int  # longest the suite will wait for a rolling window to close
+    inbox: str
+    audience_cap: int
+    mail_budget_s: int
+    ingest_budget_s: int
+    max_window_wait_s: int
 
     def address(self, token: str) -> str:
         local, _, domain = self.inbox.partition("@")

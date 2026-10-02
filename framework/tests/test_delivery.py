@@ -53,8 +53,6 @@ class FakeInbox(MailClient):
         return len(message_ids)
 
 
-# --- content -----------------------------------------------------------------
-
 def test_rendered_values_and_no_leftover_tokens():
     expected = {"first": "Ada", "email": "ada+1@example.com"}
     summary = assert_rendered("Hi Ada - QA-tok", BODY, expected,
@@ -116,8 +114,6 @@ def test_one_click_http_is_refused_unless_the_suite_widens_the_schemes():
     assert one_click_url(ONE_CLICK, allowed_schemes=("https", "http")).startswith("https")
 
 
-# --- links -------------------------------------------------------------------
-
 def test_links_are_found_by_what_the_reader_sees():
     assert links.find_open_pixel(BODY, PATTERNS).endswith("/p1")
     assert links.find_link(BODY, "click target").endswith("/c9")
@@ -138,8 +134,6 @@ def test_engagement_is_itemised_and_failures_are_never_counted(monkeypatch):
     assert any("answered 500" in f for f in result["failures"])
     assert any(f.startswith("b@example.com: open") for f in result["failures"])
 
-
-# --- mail client -------------------------------------------------------------
 
 def test_wait_for_polls_until_the_mail_arrives(monkeypatch):
     monkeypatch.setattr("framework.polling.time.sleep", lambda s: None)

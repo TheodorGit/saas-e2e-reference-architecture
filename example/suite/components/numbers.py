@@ -7,7 +7,6 @@ NUMBER = re.compile(r"^\d[\d,]*$")
 
 
 def painted_number(value: Locator, timeout: float = 15_000) -> int:
-    """Wait until `value` shows a number (not its placeholder) and return it.
-    Reading as soon as the label is visible reads the placeholder."""
+    # The label paints before the number, so wait for a number.
     expect(value).to_have_text(NUMBER, timeout=timeout)
     return int(value.inner_text().replace(",", ""))

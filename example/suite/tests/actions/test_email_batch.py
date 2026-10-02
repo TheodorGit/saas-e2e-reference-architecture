@@ -1,10 +1,4 @@
-"""An email batch through the wizard, to a tag, with an address suppression list.
-
-The suppressed contact is IN the audience, so only the suppression list can keep
-it out. The positive control is an ordinary recipient: its copy arriving proves
-the send happened, which is what makes the suppressed contact's empty inbox mean
-something.
-"""
+"""An email batch through the wizard, to a tag, with an address suppression list."""
 import pytest
 
 from example.suite import evidence
@@ -73,7 +67,6 @@ def test_email_batch_send_with_suppression(app_page, app_api, inbox, config, run
                         expected=f"{len(expected)} copies, one per recipient")
 
     def held_back():
-        # Sent means every message was handed to SMTP, and the control's arrived.
         leaked = inbox.search(subject=subject, to=held)
         for message in leaked:
             evidence.email(steps, inbox, message, "the email they received")

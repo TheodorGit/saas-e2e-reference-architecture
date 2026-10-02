@@ -1,9 +1,4 @@
-"""The plugin end to end: a throwaway suite run through pytest in a subprocess.
-
-Directory names sort in the WRONG order on purpose (verification first
-alphabetically), so a pass proves the stage option, not the file system, set
-the order.
-"""
+"""The plugin end to end: a throwaway suite run through pytest in a subprocess."""
 import json
 
 import pytest

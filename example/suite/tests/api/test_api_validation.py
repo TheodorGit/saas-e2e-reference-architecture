@@ -5,7 +5,7 @@ from example.suite import ledger_kinds as kinds
 
 pytestmark = pytest.mark.api
 
-VALIDATION_COST = 5  # the product's price for one billed validation
+VALIDATION_COST = 5
 
 
 def test_api_validation_is_billed(v1, config, entity_name, record):
@@ -15,7 +15,7 @@ def test_api_validation_is_billed(v1, config, entity_name, record):
     if answer is None or answer.status_code != 200:
         return  # the failed call is recorded; teardown fails the test
     body = answer.json()
-    # A fresh, run-unique address: no free window can be open for it.
+    # A fresh address, so no free window is open for it.
     record("validation", kinds.VALIDATION, cost=VALIDATION_COST, name=token, token=token,
            email=email, reference=body["reference"], expected_free=False)
     v1.check("the response states the charge", lambda: _charged(body),

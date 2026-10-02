@@ -1,21 +1,4 @@
-"""The framework as a pytest plugin. A suite enables it with
-
-    pytest_plugins = ["framework.pytest_plugin"]
-
-and gets:
-  hooks     stage ordering (ini option e2e_stages), the run manifest, report
-            build + mail at session end (every run), destructive-test gating,
-            replay announced in the header
-  fixtures  run_id, subject_token, entity_name,
-            steps (a StepRecorder; held soft failures are raised in teardown),
-            e2e_ledger (the session ledger, or a replayed one),
-            api_recorder (factory; every call and check a soft step),
-            api_coverage (every API call this session, for docs coverage)
-
-Artifacts land in reports/<run_id>-<label>/ (E2E_RESULTS_DIR overrides the root;
-E2E_RUN_LABEL names the run, e.g. 'clean'), and reports/latest.html always opens the
-newest report (E2E_LATEST_PAGE overrides).
-"""
+"""The framework's pytest plugin: its hooks and fixtures."""
 import os
 from pathlib import Path
 
@@ -78,7 +61,6 @@ def pytest_runtest_makereport(item, call):
     # Rewritten every phase: a killed run still leaves an honest manifest.
     manifest.write(tokens.run_dir(), final=False)
     if report.failed and _ledger_key in item.config.stash:
-        # A failure anywhere freezes every entity the run created: evidence.
         item.config.stash[_ledger_key].preserve_all()
 
 
@@ -92,8 +74,7 @@ def pytest_sessionfinish(session, exitstatus):
         from framework.reporting.report_builder import build, write_latest
         built = build(directory)
         latest = write_latest(built["report"], latest_page())
-        # Paths relative to where the run started: usable on the host as well
-        # as inside a container that mounts the same folder.
+        # Relative, so the path works on the host and inside a container that mounts it.
         print(f"\n[report] {built['subject']}\n[report] {_shown(built['report'])}\n"
               f"[report] latest: {_shown(latest)}")
     except Exception as exc:  # a report bug must not change the run's outcome
@@ -104,7 +85,6 @@ def pytest_sessionfinish(session, exitstatus):
 
 
 def latest_page() -> Path:
-    """The page that always opens the newest report (E2E_LATEST_PAGE overrides)."""
     return Path(os.getenv(LATEST_PAGE_ENV) or tokens.results_root() / "latest.html")
 
 
@@ -115,8 +95,6 @@ def _shown(path) -> str:
         return str(path)
 
 
-# --- fixtures ---------------------------------------------------------------
-
 @pytest.fixture(scope="session")
 def run_id() -> str:
     return tokens.current_run_id()
@@ -124,7 +102,6 @@ def run_id() -> str:
 
 @pytest.fixture
 def subject_token(run_id, request):
-    """Factory: a unique subject token for this test (slug defaults to its name)."""
     def make(slug: str = None) -> str:
         return tokens.subject_token(
             run_id, slug or request.node.originalname.removeprefix("test_")[:24])
@@ -133,17 +110,12 @@ def subject_token(run_id, request):
 
 @pytest.fixture
 def entity_name(run_id):
-    """Factory: a unique, prefixed name for something the test creates."""
     return lambda slug: tokens.entity_name(run_id, slug)
 
 
 @pytest.fixture
 def steps(request):
-    """A StepRecorder for this test, finalised with the test's real outcome.
-
-    A test whose body passed while holding a failed soft step is failed here, in
-    teardown: raising held failures is not left to the test, so it can never pass
-    that way."""
+    """Fails the test in teardown if it holds a failed soft step."""
     nodeid = request.node.nodeid
     recorder = StepRecorder(profiles.profile_for(nodeid).key, nodeid)
     yield recorder
@@ -155,7 +127,6 @@ def steps(request):
     else:
         recorder.finalize("completed" if call is not None and call.passed else "failed")
     recorder.save(tokens.run_dir())
-    # What each failed check saw; a passing check's attachments are dropped.
     evidence.save_attachments(recorder, tokens.run_dir())
     if call is not None and call.passed:
         recorder.raise_soft_failures()
@@ -163,16 +134,11 @@ def steps(request):
 
 @pytest.fixture(scope="session")
 def api_coverage(request) -> Coverage:
-    """Every API call recorded this session, keyed by route template."""
     return request.config.stash[_coverage_key]
 
 
 @pytest.fixture
 def api_recorder(steps, api_coverage, request):
-    """Factory: make(http_session, base_url, label='') -> ApiRecorder.
-
-    Calls and checks are soft steps on this test's `steps`, whose teardown fails
-    a test that passed its body while holding a failed step."""
     def make(http, base_url: str, label: str = "") -> ApiRecorder:
         return ApiRecorder(http, base_url, steps, api_coverage, request.node.nodeid, label)
     return make
@@ -180,7 +146,6 @@ def api_recorder(steps, api_coverage, request):
 
 @pytest.fixture(scope="session")
 def e2e_ledger(request):
-    """This run's ledger, or an earlier run's when E2E_REPLAY_LEDGER is set."""
     path = tokens.run_dir() / "ledger.json"
     source = replay_source(REPLAY_LEDGER_ENV)
     ledger = Ledger.replay(source, path) if source else Ledger(path)

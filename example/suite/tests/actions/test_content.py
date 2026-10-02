@@ -43,7 +43,6 @@ def test_content_standard(app_api, inbox, config, make_contact, entity_name, sub
     html, headers = inbox.html(message.id), inbox.headers(message.id)
 
     def on_the_email(check):
-        """The check, with the delivered email itself as its evidence."""
         def run():
             evidence.email(steps, inbox, message, "the email as delivered")
             return check()

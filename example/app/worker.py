@@ -1,13 +1,4 @@
-"""The worker: sends due email batches and automation emails, and ingests events
-after a delay.
-
-Stats and billing are deliberately asynchronous: an open, a click, a delivery or
-a charge is written as a raw event the moment it happens, and only reaches the
-report and the billing journal DEMO_ESP_INGEST_DELAY_S later. That is the shape
-of a real ingestion pipeline, and what the suite's staged verification is for.
-
-    python -m example.app.worker
-"""
+"""The worker: sends due email batches and automation emails, and ingests events after a delay."""
 import secrets
 import signal
 import threading
@@ -17,7 +8,6 @@ from example.app.settings import SETTINGS
 
 
 def _claim(batch_id: int) -> bool:
-    """Move a due email batch to 'sending'; False when another worker got it first."""
     with db.tx() as conn:
         cur = conn.execute("UPDATE email_batches SET status = 'sending' WHERE id = ? AND "
                            "status IN ('queued', 'scheduled')", (batch_id,))
@@ -81,8 +71,7 @@ def _finish_run(run_id: int, status: str, reason: str = None, sent_at: str = Non
 
 
 def send_run(run: dict):
-    """Email one contact whose automation delay is up. The contact is read again
-    now, so an unsubscribe during the delay is honoured."""
+    # Re-read now, so an unsubscribe during the delay is honoured.
     with db.read() as conn:
         automation = conn.execute("SELECT * FROM automations WHERE id = ?",
                                   (run["automation_id"],)).fetchone()
@@ -111,7 +100,6 @@ def send_run(run: dict):
 
 
 def send_due_runs() -> int:
-    """Automation runs whose delay is up, each claimed once ('waiting' -> 'sending')."""
     with db.read() as conn:
         due = [dict(r) for r in conn.execute(
             "SELECT * FROM automation_runs WHERE status = 'waiting' AND due_at <= ? "
@@ -128,7 +116,6 @@ def send_due_runs() -> int:
 
 
 def ingest() -> int:
-    """Land every event older than the ingestion delay."""
     cutoff = db.now(-SETTINGS.ingest_delay_s)
     with db.tx() as conn:
         rows = conn.execute("SELECT * FROM events WHERE ingested_at IS NULL AND "
@@ -161,7 +148,7 @@ def run_forever(stop: threading.Event = None):
     while not stop.is_set():
         try:
             tick()
-        except Exception as exc:  # one bad tick must not stop the worker
+        except Exception as exc:  # One bad tick must not stop the worker.
             print(f"[worker] tick failed: {type(exc).__name__}: {exc}", flush=True)
         stop.wait(SETTINGS.worker_tick_s)
 

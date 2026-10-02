@@ -1,1 +1,1 @@
-"""Recorded steps, reporter, failure reasons, report builder and mailer."""
+"""Recorded steps, evidence, failure reasons, reports and mailing."""

@@ -1,17 +1,4 @@
-"""Build a run's reports from its directory.
-
-    report.html   full detail, self-contained (inline CSS, no JavaScript). Passed
-                  tests collapse to one line; failures, skips and known issues
-                  open on load, because the problems are what a reader needs first.
-    email.html    the email body: table layout and inline styles only (mail
-                  clients strip <style>), failures first.
-    summary.json  machine-readable verdict and counts.
-
-Sources, merged: the MANIFEST (authority on which tests ran and how they ended),
-the step files (detail, matched to tests by nodeid), and the suite profiles
-(titles, sections, facts). Verdict precedence: failed > skipped > passed - a skip
-means coverage did not run, so it never reports as green.
-"""
+"""Build a run's reports from its directory."""
 import html
 import json
 import os
@@ -48,8 +35,6 @@ def _when(iso: str) -> str:
         return iso or ""
 
 
-# --- load -----------------------------------------------------------------
-
 def _step_files(run_dir: Path) -> dict:
     by_nodeid = {}
     for path in sorted(run_dir.glob("steps__*.json")):
@@ -63,9 +48,6 @@ def _step_files(run_dir: Path) -> dict:
 
 
 def _evidence(run_dir: Path) -> dict:
-    """{nodeid: {folder, trace, files: {check number: [(label, path)]}}}, from each
-    evidence folder's id file; paths are relative to the run folder. A file
-    '06 the email they received.html' is linked as 'the email they received (.html)'."""
     found = {}
     trace = evidence.TRACE_FILE
     for id_file in sorted((run_dir / evidence.EVIDENCE_DIR).glob(f"*/{evidence.ID_FILE}")):
@@ -126,8 +108,7 @@ def load_run(run_dir) -> dict:
     counts["checks_passed"] = sum(
         sum(1 for s in t["steps"] if s.get("status") == PASSED) if t["steps"]
         else int(t["status"] == "passed") for t in tests)
-    # Steps recorded for a test the manifest never saw: the counts above
-    # understate the run, and the report says so instead of hiding it.
+    # Steps for a test the manifest never saw: the counts understate the run.
     known = {t["nodeid"] for t in tests}
     counts["orphan_step_files"] = sorted(n for n in steps_by_nodeid if n not in known)
     verdict = ("failed" if counts["failed"] else
@@ -159,7 +140,6 @@ def subject_line(name: str, verdict: str, counts: dict, finished: str) -> str:
         head = f"[GAPS] {name}: {counts['passed']} passed, {counts['skipped']} not verified"
     else:
         head = f"[PASSED] {name}: all {total} tests passed"
-    # How much was actually checked matters most on a red run.
     head += f" - {counts['checks_passed']} of {counts['checks']} checks passed"
     if counts.get("known_issues"):
         head += f" ({counts['known_issues']} known issue(s))"
@@ -169,7 +149,6 @@ def subject_line(name: str, verdict: str, counts: dict, finished: str) -> str:
 
 
 def failure_view(test: dict) -> dict:
-    """What a failure SAYS, decided once so the email and report agree."""
     bad = next((s for s in test["steps"] if s.get("status") == FAILED), None)
     if bad:
         return {"step": bad.get("step", ""), "means": (bad.get("means") or "").strip(),
@@ -177,12 +156,9 @@ def failure_view(test: dict) -> dict:
                 "instead": (bad.get("message") or "").strip()
                 or first_error_line(test["failure"]),
                 "error": (bad.get("error") or "").strip()}
-    # Failed outside any step: nothing declared an expectation.
     return {"step": "", "means": classify_failure_text(test["failure"]),
             "expected": "", "instead": first_error_line(test["failure"]), "error": ""}
 
-
-# --- report.html ------------------------------------------------------------
 
 def _pill(status: str) -> str:
     s = STATUS.get(status, STATUS["skipped"])
@@ -198,8 +174,6 @@ def _labelled(label: str, value: str) -> str:
 
 
 def _why_box(means: str, expected: str, instead: str, detail: str) -> str:
-    """WHY IT FAILED: meaning first, then expected vs instead; the whole, uncut
-    error is one click away."""
     s = STATUS["failed"]
     head = (f'<div style="font-weight:600;font-size:14px;">{_esc(means)}</div>'
             if means else "")
@@ -223,8 +197,6 @@ def _note_box(title: str, text: str, status: str) -> str:
 
 
 def _steps_table(test: dict) -> str:
-    """One header row (Check, Result), then one row per check. A failed check or a
-    known issue carries its explanation in its own row, where it happened."""
     if not test["steps"]:
         text = {"passed": "No steps recorded: this test asserts directly.",
                 "skipped": "No steps recorded: skipped before its first step.",
@@ -233,8 +205,6 @@ def _steps_table(test: dict) -> str:
     rows, first_failure = [], True
     files = (test.get("evidence") or {}).get("files", {})
     for number, step in enumerate(test["steps"], 1):
-        # A step's raw data (return values, parameters) stays in its step file for
-        # tools; the report shows what the check confirmed, or why it failed.
         status = step.get("status", SKIPPED)
         cell = ""
         if status == FAILED:
@@ -281,7 +251,6 @@ def _test_block(test: dict) -> str:
         body += _note_box("Skipped:", test["skip_reason"], "skipped")
     elif status == "failed" and test["failure"] and not any(
             s.get("status") == FAILED for s in test["steps"]):
-        # Failed outside any check (a fixture, say): nothing to attach it to.
         f = failure_view(test)
         body += _why_box(f["means"], f["expected"], f["instead"], test["failure"])
     video = (test.get("metadata") or {}).get("video")
@@ -372,8 +341,6 @@ def render_report(run: dict) -> str:
         f'</div></body></html>')
 
 
-# --- email.html -------------------------------------------------------------
-
 def _email_card(test: dict, bg: str, inner: str) -> str:
     return (f'<tr><td style="padding:6px 24px;"><table width="100%" cellpadding="0" '
             f'cellspacing="0" style="background:{bg};border-radius:4px;"><tr><td '
@@ -458,11 +425,7 @@ def render_email(run: dict) -> str:
         f'</table></td></tr></table>')
 
 
-# --- latest.html ------------------------------------------------------------
-
 def write_latest(report: Path, page: Path) -> Path:
-    """A page that always opens the newest report: one file to bookmark. The link
-    is relative, so it works wherever the reports folder is opened from."""
     page = Path(page)
     page.parent.mkdir(parents=True, exist_ok=True)
     target = _esc(quote(Path(os.path.relpath(report, page.parent)).as_posix()))
@@ -475,10 +438,7 @@ def write_latest(report: Path, page: Path) -> Path:
     return page
 
 
-# --- entry point ------------------------------------------------------------
-
 def build(run_dir) -> dict:
-    """Write summary.json, report.html and email.html into `run_dir`."""
     run_dir = Path(run_dir)
     run = load_run(run_dir)
     summary = {k: v for k, v in run.items() if k != "tests"}

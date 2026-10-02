@@ -25,7 +25,6 @@ def test_billing_journal_reconciles(public_api, e2e_ledger, baseline, config, st
             "billed actions the run recorded": charged, "free validations": free}
 
     def seen(check):
-        """The check, with the rows it read and what the run recorded as evidence."""
         def run():
             evidence.data(steps, "the journal rows and the run's record", read)
             return check()

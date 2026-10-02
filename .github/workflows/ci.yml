@@ -30,15 +30,14 @@ jobs:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
       - run: ruff check .
-      # Unit and integration: the Mailpit service makes the live adapter test run.
+      # Mailpit lets the live adapter test run.
       - run: pytest framework/tests -rs
 
-  # The example against a clean app: must be green.
   example-clean:
     needs: framework
     runs-on: ubuntu-latest
     env:
-      E2E_HEADLESS: "1"  # nobody watches CI: full speed, no live view
+      E2E_HEADLESS: "1"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -56,7 +55,6 @@ jobs:
           name: report-clean
           path: reports/*-clean/
 
-  # The bug matrix is the one source for which flags exist.
   flags:
     needs: framework
     runs-on: ubuntu-latest
@@ -69,7 +67,6 @@ jobs:
           echo "list=$(python -c 'import json, example.suite.bug_matrix as m;
           print(json.dumps(sorted(m.GUARDS)))')" >> "$GITHUB_OUTPUT"
 
-  # One run per injected defect: each must be red in its named test, at its check.
   example-bug:
     needs: [example-clean, flags]
     runs-on: ubuntu-latest
@@ -106,8 +103,7 @@ jobs:
           name: report-${{ matrix.flag }}
           path: reports/*-${{ matrix.flag }}/
 
-  # The sample-report site: the clean run and one red run, refreshed on every push to
-  # main once everything above held. Needs Settings > Pages > Source: GitHub Actions.
+  # Needs Settings > Pages > Source: GitHub Actions.
   pages:
     needs: [example-clean, example-bug]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -124,7 +120,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      # Each artifact holds one run folder (the wildcard kept it); both land in reports/.
+      # Each artifact holds its run folder, so both land in reports/.
       - uses: actions/download-artifact@v8
         with:
           name: report-clean

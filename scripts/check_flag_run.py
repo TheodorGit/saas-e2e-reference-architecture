@@ -1,19 +1,6 @@
-"""Hold a finished example run to the bug matrix.
+"""Holds a finished example run to the bug matrix.
 
     python scripts/check_flag_run.py <results-root> [--flag NAME]
-
-Without --flag every test must pass. With --flag, every test that did not pass is
-sorted into one of three groups:
-  guard            the matrix's test; it must be red at the matrix's check
-  caused by flag   a declared impact of this flag, with the reason it is reached
-  separate defect  anything else: fails the check (a second bug, or a defect that
-                   reaches further than the matrix says)
-A declared impact that stayed green fails the check too (the matrix is stale).
-Every test must be guarded by a flag or listed in NOT_GUARDED with a reason.
-
-Reads the newest finished run labelled for the flag (<run id>-<flag>, or -clean)
-under <results-root>, prints the verdict and writes it to matrix_check.txt in that
-run's folder, next to its report.
 """
 import argparse
 import sys
@@ -39,7 +26,6 @@ def describe(test: dict) -> str:
 
 
 def check(run: dict, flag: str | None) -> tuple[list[str], list[str]]:
-    """(lines explaining every test that did not pass, problems)."""
     guarded = {g.test for g in GUARDS.values()} | set(NOT_GUARDED)
     problems = [f"{t['func']} is guarded by no flag (add one to the bug matrix)"
                 for t in run["tests"] if t["func"] not in guarded]

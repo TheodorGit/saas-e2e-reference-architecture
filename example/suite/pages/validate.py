@@ -11,8 +11,7 @@ class ValidatePage:
         expect(self.page.get_by_role("heading", name="Validate an address")).to_be_visible()
 
     def validate(self, email: str) -> dict:
-        """Validate one address. Ends on the result for THIS request: the previous
-        result may carry identical text, so the response is awaited first."""
+        # The previous result can have identical text, so wait for this response first.
         self.page.get_by_label("Email address").fill(email)
         with self.page.expect_response(lambda r: r.url.endswith("/api/validate")) as caught:
             self.page.get_by_role("button", name="Validate address").click()

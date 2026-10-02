@@ -139,7 +139,6 @@ def test_explanations_sit_at_the_check_they_explain(tmp_path):
         < at["Billing does not match the run."] < at["legacy counter"] \
         < at["Known issue:"] < at["close the page"], f"out of place: {at}"
     assert report.count("WHY IT FAILED") == 1
-    # One header row per test; check names in their own cell, plain weight.
     assert report.count(">Check</th>") == 1 and report.count(">Result</th>") == 1
     assert re.search(r'<td style="[^"]*">totals match</td>', report), "check name not in its cell"
     assert not re.search(r'font-weight:700;[^>]*>totals match<', report), "check name is bold"

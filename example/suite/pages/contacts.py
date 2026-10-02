@@ -9,7 +9,6 @@ from framework.ui.names import label_pattern
 
 
 def _lists_contacts(query: dict):
-    """Matches the list request carrying exactly these filters."""
     def match(response) -> bool:
         url = urlparse(response.url)
         if url.path != "/api/contacts" or response.request.method != "GET":
@@ -33,8 +32,6 @@ class ContactsPage:
     def _settled(self):
         expect(self.table).not_to_have_attribute("aria-busy", "true")
 
-    # --- reading -----------------------------------------------------------------
-
     def row(self, email: str) -> Locator:
         return self.page.get_by_test_id("contact-row").filter(
             has=self.page.get_by_role("cell", name=email.lower(), exact=True))
@@ -50,11 +47,8 @@ class ContactsPage:
         return sorted(t.strip() for t in
                       self.row(email).get_by_test_id("tag-chip").all_text_contents())
 
-    # --- filtering ----------------------------------------------------------------
-
     def search(self, text: str):
-        """Type a search. The list reloads only after typing pauses (debounced),
-        so this waits for the request carrying THIS query, then for the table."""
+        # Debounced: wait for the request carrying this query, then the table.
         with self.page.expect_response(_lists_contacts({"q": text.strip()})):
             self.page.get_by_placeholder("Search by name or email").fill(text)
         self._settled()
@@ -64,11 +58,8 @@ class ContactsPage:
             self.tag_filter.choose(tag)
         self._settled()
 
-    # --- acting ---------------------------------------------------------------------
-
     def add(self, email: str, first_name: str = "", last_name: str = "", tags=()):
-        """Ends on the new row. The 'Contact saved' toast renders before the
-        request finishes, so it is not the end of this action."""
+        # The toast shows before the save finishes, so this ends on the new row.
         self.page.get_by_role("button", name=label_pattern("Add contact")).click()
         form = self.page.get_by_role("form", name="Add contact")
         form.get_by_label("Email").fill(email)
@@ -85,26 +76,21 @@ class ContactsPage:
             f"{len(list(emails))} selected")
 
     def bulk_tag(self, tag: str, remove: bool = False):
-        """Tag or untag the selection. The rows change optimistically (pending)
-        and are then re-read from the server: this ends when no pending chip is
-        left, i.e. on the server's answer, not the optimistic one."""
+        # Rows change optimistically first; this ends when no pending chip is left.
         self.page.get_by_label("Tag for selected").fill(tag)
         with self.page.expect_response(lambda r: r.url.endswith("/api/contacts/bulk-tag")):
             self.page.get_by_role("button", name="Remove tag" if remove else "Add tag").click()
-        # Pending state is only exposed as a class: CSS is the last resort here.
+        # The pending state is only a class, so CSS is the only way to it.
         expect(self.table.locator("[data-testid=tag-chip].pending")).to_have_count(0)
         self._settled()
 
     def delete(self, email: str):
-        """Ends when the row is gone."""
         row = self.row(email)
-        # The button's accessible name is "delete Delete": icon word + label.
         row.get_by_role("button", name=label_pattern("Delete")).click()
         ConfirmDialog(self.page, "Delete contact").confirm("Delete contact")
         expect(row).to_have_count(0)
 
     def export(self) -> str:
-        """Download the CSV export of what the list currently shows."""
         with self.page.expect_download() as caught:
             self.page.get_by_role("link", name="Export CSV").click()
         return open(caught.value.path(), encoding="utf-8").read()

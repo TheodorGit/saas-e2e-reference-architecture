@@ -1,17 +1,4 @@
-"""API calls as recorded steps, finished and asserted in teardown.
-
-Each call is a step that declares what it expects (method, route, status) and
-records what came back. Checks on the response are steps too. All of them are
-soft: one wrong answer does not hide the independent checks after it.
-
-The danger of soft checks is a test that ends without raising them - it passes
-while holding a failure. So raising is not left to the test: the fixture that
-hands out recorders raises every held failure in teardown, and a test that
-passed its body still fails. A test can never pass while holding a failed step.
-
-Every call is also counted against its route TEMPLATE ("/items/{item_id}"),
-not the concrete URL, so docs coverage can be checked (see coverage.py).
-"""
+"""API calls and checks as recorded soft steps."""
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -34,8 +21,6 @@ class Call:
 
 
 class Coverage:
-    """Every call made this session, keyed by method and route template."""
-
     def __init__(self):
         self.calls: list[Call] = []
 
@@ -59,8 +44,6 @@ class ApiRecorder:
 
     def call(self, method: str, template: str, expect: int = 200, name: str = None,
              params: dict = None, json=None, **path) -> requests.Response | None:
-        """Call `template` filled with `path`; record the step and the coverage.
-        Returns the response, or None when the request itself failed."""
         method = method.upper()
         url = self.base + template.format(**path)
         step = name or f"{self.label}{method} {template}"
@@ -77,7 +60,6 @@ class ApiRecorder:
         self.last = response
 
         def verify():
-            # The exchange is this check's evidence; kept only if it fails.
             self.steps.attach("request and response", exchange(response))
             assert response.status_code == expect, (
                 f"{method} {url} answered {response.status_code}, expected {expect}: "
@@ -87,7 +69,6 @@ class ApiRecorder:
         return response
 
     def check(self, name: str, fn: Callable, expected: str, means: str = None):
-        """A soft check on what came back; the last exchange is its evidence."""
         def checked():
             if self.last is not None:
                 self.steps.attach("the response it checked", exchange(self.last))
@@ -96,7 +77,6 @@ class ApiRecorder:
 
 
 def exchange(response) -> str:
-    """A request and its response as text: what an API check saw."""
     request = getattr(response, "request", None)
     lines = [f"{getattr(request, 'method', '')} {getattr(request, 'url', '')}".strip()]
     body = getattr(request, "body", None)

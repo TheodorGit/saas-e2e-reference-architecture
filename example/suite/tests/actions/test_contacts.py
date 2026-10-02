@@ -82,7 +82,7 @@ def test_bulk_tag_live_refresh(app_page, app_api, make_contact, entity_name, ste
 
     def shown(expected_holders):
         holders = [e for e in people if extra in page.tags(e)]
-        # Empty is the point once the tag is removed; the three rows are still read.
+        # Empty is the point once the tag is removed.
         return assert_same(expected_holders, holders, f"rows showing {extra}",
                            allow_empty=not expected_holders)
     steps.step("the list shows the server's truth", lambda: shown(chosen),

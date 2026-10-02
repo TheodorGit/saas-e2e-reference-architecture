@@ -1,11 +1,6 @@
-"""Build the sample-report site: a green run and a red run, as GitHub Pages serves them.
+"""Builds the sample-report site.
 
     python scripts/build_site.py --reports reports --red suppression_leak --out site
-
-From the results root, the newest finished clean run and the newest run of the --red
-defect are each copied whole, so every link inside the report (videos, evidence, the
-mailed email) keeps working. index.html is a landing page with one card per run. CI
-builds and deploys it on every push to main.
 """
 import argparse
 import html
@@ -33,8 +28,7 @@ SOURCE_NOTE = "Built by CI from the latest push to main."
 
 
 def long_path(path: Path) -> str:
-    """Windows refuses paths over 260 characters unless they carry the \\\\?\\ prefix,
-    and evidence file names in a report can be long."""
+    # Windows refuses paths over 260 characters without the long-path prefix.
     full = str(path.resolve())
     return "\\\\?\\" + full if os.name == "nt" and not full.startswith("\\\\?\\") else full
 

@@ -1,14 +1,4 @@
-"""Docs coverage: a documented endpoint that no test executed this session is red.
-
-API documentation is a promise; an endpoint in it that nothing calls is an
-untested promise, and it rots silently. The check compares the documented
-endpoints (method + route template, from the product's own index or spec) with
-the ones the session's recorders actually called, and names both sides:
-documented but never executed, and executed but not documented.
-
-"This session" is literal: a run that selects a subset of tests exercises a
-subset of the API, and the check says so instead of trusting an earlier run.
-"""
+"""Docs coverage: documented endpoints against the ones this session executed."""
 from collections.abc import Iterable
 
 from framework.api.recorder import Coverage
@@ -20,7 +10,6 @@ def key(method: str, template: str) -> str:
 
 
 def gaps(documented: Iterable[tuple[str, str]], coverage: Coverage) -> tuple[list, list]:
-    """(documented but never executed, executed but not documented)."""
     return difference([key(m, t) for m, t in documented], coverage.executed())
 
 

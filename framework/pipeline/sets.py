@@ -1,17 +1,4 @@
-"""Set-difference and partition assertions.
-
-A count that matches can hide two errors that cancel out: one expected member
-missing and one stranger present. Comparing the SETS names both, so a failure
-says who, not just how many.
-
-A partition goes one step further: every member of a universe (say, everyone
-the run aimed at) lands in exactly one outcome (received, excluded, unsubscribed),
-and no outcome holds anyone from outside the universe.
-
-A check over an EMPTY expected set proves nothing - "nobody unexpected received
-it" is also true when nobody was sent anything. So an empty expected set fails,
-unless the caller says empty is the point (allow_empty=True).
-"""
+"""Set-difference and partition assertions."""
 from collections.abc import Iterable, Mapping
 
 SHOWN = 10
@@ -28,8 +15,6 @@ def _show(items) -> str:
 
 
 def difference(expected: Iterable, observed: Iterable) -> tuple[list, list]:
-    """(missing, unexpected): expected but not observed, observed but not expected.
-    Strings compare case-insensitively."""
     want, got = _norm(expected), _norm(observed)
     return sorted(want - got, key=str), sorted(got - want, key=str)
 
@@ -63,7 +48,6 @@ def assert_disjoint(left: Iterable, right: Iterable, what: str,
 
 
 def assert_partition(universe: Iterable, parts: Mapping[str, Iterable]) -> str:
-    """Every member of `universe` is in exactly one part; no part holds an outsider."""
     members = _norm(universe)
     _not_vacuous(members, "partition", allow_empty=False)
     seen: dict = {}

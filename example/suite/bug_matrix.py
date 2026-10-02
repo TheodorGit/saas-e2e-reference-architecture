@@ -1,15 +1,4 @@
-"""What each injected defect must break, and what else it is known to break.
-
-guard   the test, and the check in it, that must go red: the proof that the test
-        guards the defect.
-impact  other tests the defect reaches, each with WHY. They may go red on that
-        flag's run and are reported as caused by it.
-
-Any other red test on a flag's run is a SEPARATE defect, and fails the check: a
-second bug, or a defect that reaches further than understood. A declared impact
-that stays green fails it too, so the matrix cannot go stale quietly.
-scripts/check_flag_run.py holds a finished run to this matrix; CI runs every flag.
-"""
+"""Which test must catch each injected defect, and what else each one breaks."""
 from typing import NamedTuple
 
 
@@ -64,7 +53,6 @@ GUARDS = {
                                             "the unsubscribed contact got nothing"),
 }
 
-# Tests with no flag of their own, and why.
 NOT_GUARDED = {
     "test_baseline_readings": "reads the surfaces before the run acts; guards nothing alone",
     "test_dashboard_deltas": "proven red as the declared impact of every billing defect "

@@ -4,7 +4,6 @@ from framework.polling import poll_until
 
 
 def wait_until_sent(api: AppApi, batch_id: int, budget_s: float) -> dict:
-    """Poll the email batch until the worker has handed every message to SMTP."""
     batch, waited = poll_until(lambda: api.batch(batch_id),
                                lambda b: b["status"] in ("sent", "failed"), budget_s, 1)
     assert batch["status"] == "sent", (

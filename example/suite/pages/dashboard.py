@@ -14,13 +14,11 @@ class DashboardPage:
         expect(self.page.get_by_role("heading", name="Dashboard")).to_be_visible()
 
     def refresh(self):
-        """Re-read from the server. goto() to the same #/dashboard is a same-document
-        navigation: the view is not rebuilt and would keep showing old numbers."""
+        # goto() to the same hash does not re-render the view, so reload.
         self.page.reload()
         expect(self.page.get_by_role("heading", name="Dashboard")).to_be_visible()
 
     def value(self, key: str) -> int:
-        """The panel's number, once painted (the label paints first)."""
         return painted_number(self.page.get_by_test_id(f"value-{key}"))
 
     def values(self) -> dict:

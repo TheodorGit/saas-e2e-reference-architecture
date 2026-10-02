@@ -1,4 +1,4 @@
-# Demo ESP App: the web app and its worker share this image (different commands).
+# Demo ESP App image, shared by the web app and the worker.
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 DEMO_ESP_DB=/data/demo-esp.sqlite3

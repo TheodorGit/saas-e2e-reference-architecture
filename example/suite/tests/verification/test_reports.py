@@ -1,6 +1,4 @@
-"""Report cards, their drill-down lists and the public API agree - with each other
-AND with what the run did. Two surfaces fed by one pipeline can agree while both
-are wrong, so each is compared with the ledger, by set, not just by count."""
+"""Report cards, drill-down lists and the public API agree with each other and with the run."""
 import pytest
 
 from example.suite import evidence
@@ -11,12 +9,10 @@ from framework.polling import poll_until
 
 pytestmark = pytest.mark.pipeline
 
-# card -> (API count field, API list field, ledger field)
 SURFACES = {"delivered": ("delivered", "delivered_to", "recipients"),
             "opens": ("opens", "opened_by", "opened"),
             "clicks": ("clicks", "clicked_by", "clicked")}
-# A send may engage nobody (the content check's does not), so these may be empty;
-# a delivered list never may.
+# A send may engage nobody, so these may be empty; a delivered list never may.
 ENGAGEMENT = ("opens", "clicks")
 
 
@@ -37,7 +33,6 @@ def test_report_cards_list_and_api_agree(app_page, public_api, e2e_ledger, confi
                                  matches, config.ingest_budget_s, 2)
 
         def seen(check, api=api, entry=entry):
-            """The check, with the report the API returned as its evidence."""
             def run():
                 evidence.data(steps, "the report the API returned",
                               {"report": api, "the run engaged": {

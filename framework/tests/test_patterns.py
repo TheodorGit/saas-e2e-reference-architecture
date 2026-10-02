@@ -12,8 +12,6 @@ from framework.ui.names import label_pattern
 pytestmark = pytest.mark.unit
 
 
-# --- sets ---------------------------------------------------------------------
-
 def test_equal_counts_with_cancelling_errors_are_caught_and_named():
     with pytest.raises(AssertionError) as caught:
         sets.assert_same(["a@x.io", "b@x.io"], ["A@x.io", "c@x.io"], "recipients")
@@ -66,8 +64,6 @@ def test_a_clean_partition_reports_its_sizes():
     assert result == "3 members partitioned: got 2, held 1"
 
 
-# --- windows ------------------------------------------------------------------
-
 T0 = datetime(2026, 1, 1, tzinfo=UTC)
 
 
@@ -85,8 +81,6 @@ def test_no_open_window_is_outside_and_closes_at_is_past_the_margin():
     assert windows.position(T0, closed, window_s=10, margin_s=2) is False
 
 
-# --- three-valued expectations --------------------------------------------------
-
 def test_true_and_false_are_asserted_observe_is_recorded():
     steps = StepRecorder("t", "t::n")
     assert check(steps, "click", False, False, "unsubscribe counted as a click") is False
@@ -97,8 +91,6 @@ def test_true_and_false_are_asserted_observe_is_recorded():
     assert steps.steps[1]["message"].startswith("observed, not asserted")
     assert steps.steps[1]["data"]["observed"] is True
 
-
-# --- icon-polluted names ---------------------------------------------------------
 
 @pytest.mark.parametrize("name, matches", [
     ("Delete", True), ("delete Delete", True), ("person_add Add contact", True),

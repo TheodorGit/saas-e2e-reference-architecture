@@ -14,7 +14,7 @@ STATUSES = ("subscribed", "unsubscribed")
 
 
 class Invalid(ValueError):
-    """A request the app refuses; the message is shown to the user."""
+    ...
 
 
 class NotFound(LookupError):
@@ -34,12 +34,9 @@ def log_usage(conn, action: str, detail: str, credits: int = 0):
 
 
 def queue_charge(conn, action: str, reference: str, credits: int):
-    """A billable action; its journal row lands when the worker ingests it."""
     conn.execute("INSERT INTO events (kind, action, reference, credits, created_at) "
                  "VALUES ('charge', ?, ?, ?, ?)", (action, reference, credits, db.now()))
 
-
-# --- contacts -----------------------------------------------------------------
 
 def _contact(conn, row) -> dict:
     tags = [r["tag"] for r in conn.execute(
@@ -78,7 +75,6 @@ def get_contact(conn, contact_id: int) -> dict:
 
 def add_contact(conn, email: str, first_name: str = "", last_name: str = "",
                 tags=(), status: str = "subscribed") -> dict:
-    """Add a contact. status='unsubscribed' imports someone who opted out before."""
     email = normalise_email(email)
     if status not in STATUSES:
         raise Invalid(f"status must be one of {STATUSES}")
@@ -160,8 +156,6 @@ def export_csv(conn, q: str = "", tag: str = "") -> str:
     return out.getvalue()
 
 
-# --- address validation -------------------------------------------------------
-
 def _verdict(email: str) -> str:
     local = email.split("@", 1)[0]
     if "bounce" in local:
@@ -172,8 +166,6 @@ def _verdict(email: str) -> str:
 
 
 def validate_address(conn, email: str) -> dict:
-    """Validate one address. Billed, unless the same address was billed within
-    the free window."""
     email = normalise_email(email)
     since = db.now(-SETTINGS.validation_free_window_s)
     billed = conn.execute(
@@ -195,8 +187,6 @@ def validate_address(conn, email: str) -> dict:
             "free": cost == 0, "reference": reference,
             "free_window_s": SETTINGS.validation_free_window_s}
 
-
-# --- address suppression --------------------------------------------------------
 
 def list_suppression(conn) -> list[dict]:
     return [{"id": r["id"], "name": r["name"], "size": r["size"]} for r in conn.execute(
@@ -243,8 +233,6 @@ def delete_suppression(conn, list_id: int) -> dict:
     return found
 
 
-# --- email batches --------------------------------------------------------------
-
 def _batch(row) -> dict:
     return {"id": row["id"], "name": row["name"], "subject": row["subject"],
             "body_html": row["body_html"], "audience_tag": row["audience_tag"],
@@ -257,7 +245,6 @@ def _batch(row) -> dict:
 def create_batch(conn, name: str, subject: str, body_html: str,
                  audience_tag: str = None, suppression_list_ids=(),
                  send_at: str = None) -> dict:
-    """Queue an email batch: now when send_at is empty, else at send_at (UTC)."""
     name, subject = (name or "").strip(), (subject or "").strip()
     if not name or not subject or not (body_html or "").strip():
         raise Invalid("name, subject and message are all required")
@@ -288,8 +275,6 @@ def list_batches(conn) -> list[dict]:
 
 
 def recipients(conn, batch: dict) -> list[dict]:
-    """Subscribed contacts in the audience, minus every selected address
-    suppression list."""
     sql = "SELECT * FROM contacts c WHERE c.status = 'subscribed'"
     args: list = []
     if batch["audience_tag"]:
@@ -320,11 +305,8 @@ def report(conn, batch_id: int) -> dict:
             "opened_by": lists["open"], "clicked_by": lists["click"]}
 
 
-# --- automations ------------------------------------------------------------------
-
 def create_automation(conn, name: str, trigger_tag: str, delay_s: int, subject: str,
                       body_html: str) -> dict:
-    """When trigger_tag is added to a contact, email them once delay_s has passed."""
     name, tag = (name or "").strip(), (trigger_tag or "").strip()
     subject = (subject or "").strip()
     if not name or not tag or not subject or not (body_html or "").strip():
@@ -358,7 +340,6 @@ def delete_automation(conn, automation_id: int) -> dict:
 
 
 def enroll(conn, contact_id: int, email: str, tag: str):
-    """A tag was added: start a run in every automation it triggers."""
     for automation in conn.execute("SELECT id, delay_s FROM automations WHERE trigger_tag = ?",
                                    (tag,)).fetchall():
         conn.execute(
@@ -367,8 +348,6 @@ def enroll(conn, contact_id: int, email: str, tag: str):
             (automation["id"], contact_id, email, db.now(), db.now(automation["delay_s"])))
         log_usage(conn, "automation.enroll", email)
 
-
-# --- credits and dashboard --------------------------------------------------------
 
 def balance(conn) -> int:
     spent = conn.execute("SELECT COALESCE(SUM(credits), 0) FROM journal").fetchone()[0]

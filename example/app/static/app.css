@@ -15,7 +15,6 @@ a { color: var(--accent); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden;
   clip: rect(0 0 0 0); white-space: nowrap; }
 
-/* top bar */
 .topbar { display: flex; align-items: center; gap: 20px; padding: 10px 16px;
   background: #fff; border-bottom: 2px solid var(--accent); flex-wrap: wrap; }
 .brand { font-weight: 700; font-size: 17px; }
@@ -23,7 +22,6 @@ a { color: var(--accent); }
 .topbar nav a { text-decoration: none; color: var(--muted); }
 .topbar nav a[aria-current] { color: var(--ink); font-weight: 600; }
 
-/* forms and buttons */
 label { display: block; margin: 10px 0 4px; font-size: 13px; color: var(--muted); }
 input, textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line);
   border-radius: 6px; font: inherit; background: #fff; }
@@ -41,7 +39,6 @@ button:disabled { opacity: .6; cursor: default; }
 .choice { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
 .choice label { margin: 0; color: var(--ink); font-size: 15px; }
 
-/* cards, panels, tables */
 .card { background: #fff; border: 1px solid var(--line); border-radius: 8px;
   padding: 16px 18px; margin-bottom: 16px; }
 .narrow { max-width: 420px; margin: 40px auto; }
@@ -76,7 +73,6 @@ table[aria-busy] tbody { opacity: .5; }
 .result.verdict-invalid, .result.error { color: var(--bad); }
 .result.verdict-risky { color: var(--warn); }
 
-/* chips and badges */
 .chip { display: inline-block; padding: 1px 8px; margin: 1px 3px 1px 0; border-radius: 999px;
   background: #eef2ff; color: var(--accent); font-size: 12px; }
 .chip.pending { opacity: .5; font-style: italic; }
@@ -87,7 +83,6 @@ table[aria-busy] tbody { opacity: .5; }
 .badge-queued, .badge-scheduled, .badge-sending { background: var(--warn-bg);
   color: var(--warn); }
 
-/* the roleless dropdown */
 .dropdown { position: relative; min-width: 180px; }
 .dropdown-toggle { padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px;
   background: #fff; cursor: pointer; }
@@ -97,7 +92,6 @@ table[aria-busy] tbody { opacity: .5; }
 .dropdown-item { padding: 7px 10px; cursor: pointer; }
 .dropdown-item:hover { background: #eef2ff; }
 
-/* toasts and dialog */
 .toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column;
   gap: 8px; z-index: 20; }
 .toast { padding: 10px 14px; border-radius: 6px; background: var(--ink); color: #fff;
@@ -108,5 +102,4 @@ table[aria-busy] tbody { opacity: .5; }
   align-items: center; justify-content: center; z-index: 10; }
 .dialog { background: #fff; border-radius: 8px; padding: 18px 20px; width: min(420px, 92vw); }
 
-/* public pages */
 body.public { padding: 16px; }

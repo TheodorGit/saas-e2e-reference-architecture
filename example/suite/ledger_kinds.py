@@ -1,17 +1,12 @@
-"""What each ledger entry kind means for Demo ESP App, and how it counts.
-
-The framework ledger stores free-form entries; the meaning lives here. Every
-number the report shows and every total a check asserts is derived through
-COUNTERS, so the two can never disagree.
-"""
+"""The Demo ESP App's ledger entry kinds, and how each counts."""
 from framework.pipeline import totals
 
-VALIDATION = "validation"         # one address validation: cost 5, or 0 inside the free window
-SEND = "send"                    # an email batch whose report is cross-checked
-UNSUBSCRIBE_SEND = "unsub_send"  # an email batch whose recipients unsubscribe
-AUTOMATION = "automation"        # an automation's emails: not billed, not in any report
-CONTACT = "contact"              # a contact added or deleted
-STATUS = "status"                # a subscription status change
+VALIDATION = "validation"
+SEND = "send"
+UNSUBSCRIBE_SEND = "unsub_send"
+AUTOMATION = "automation"
+CONTACT = "contact"
+STATUS = "status"
 
 SENDS = (SEND, UNSUBSCRIBE_SEND)
 BILLABLE = (VALIDATION, *SENDS)

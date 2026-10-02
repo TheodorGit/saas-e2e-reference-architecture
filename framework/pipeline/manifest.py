@@ -1,10 +1,4 @@
-"""The run manifest: the authority on which tests ran and how each one ended.
-
-Step files carry detail, but a test that dies inside a fixture never writes one,
-so a report built from step files alone would silently leave it out. The
-manifest records every phase of every test as it happens, and is rewritten after
-each phase, so even a run killed mid-flight leaves an honest record.
-"""
+"""The run manifest: which tests ran and how each ended."""
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -18,7 +12,6 @@ class RunManifest:
         self.tests = {}
 
     def record(self, report, func: str) -> dict:
-        """Fold one phase report (setup/call/teardown) into the test's entry."""
         entry = self.tests.setdefault(report.nodeid, {
             "nodeid": report.nodeid,
             "func": func,
@@ -30,9 +23,7 @@ class RunManifest:
         entry["duration"] += report.duration
         entry["last_phase"] = report.when
         if report.failed and entry["status"] != "failed":
-            # A teardown failure is still a failure: the test did not do its job.
             entry["status"] = "failed"
-            # Kept whole: a cut failure text loses where the error came from.
             entry["failure"] = (getattr(report, "longreprtext", "")
                                 or str(report.longrepr)).strip()
         elif report.skipped and entry["status"] == "passed":
@@ -41,8 +32,6 @@ class RunManifest:
         return entry
 
     def snapshot(self, final: bool) -> dict:
-        """The manifest as it stands now. A test whose teardown has not been
-        recorded is reported as interrupted, never as passed."""
         now = datetime.now(UTC)
         tests = []
         for entry in self.tests.values():

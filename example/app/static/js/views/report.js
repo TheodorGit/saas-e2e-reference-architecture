@@ -7,7 +7,7 @@ const CARDS = [
   ["clicks", "Clicks", "clicked_by", "Clicked by"],
 ];
 
-// Cards paint label first, number later; each opens a drill-down of WHO.
+// Deliberate: cards paint label first, number later.
 export async function reportView(root, id) {
   const title = h("h1", { text: "Email batch report" });
   const meta = h("p", { class: "muted" });

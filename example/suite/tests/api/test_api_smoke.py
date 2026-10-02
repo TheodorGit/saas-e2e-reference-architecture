@@ -1,5 +1,4 @@
-"""Smoke: driven by the API's own index, every documented read answers with a
-token and refuses without one."""
+"""Smoke test: every documented read answers with a token and refuses without one."""
 import pytest
 
 pytestmark = pytest.mark.api
@@ -10,7 +9,7 @@ def test_api_smoke(v1, v1_anon):
     endpoints = index.json()["endpoints"] if index is not None else []
     v1.check("the index lists endpoints", lambda: _some(endpoints, "endpoints"),
              expected="a non-empty index, readable without a token")
-    # Reads with no path parameter can be called blind; the rest need data (full tests).
+    # Reads with a path parameter need data, so they have full tests.
     blind = [e["path"] for e in endpoints
              if e["method"] == "GET" and e["auth"] == "bearer" and "{" not in e["path"]]
     v1.check("the index lists reads to call", lambda: _some(blind, "token-protected reads"),

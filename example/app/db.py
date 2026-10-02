@@ -1,8 +1,4 @@
-"""SQLite storage shared by the web process and the worker.
-
-Timestamps are UTC ISO-8601 strings in one fixed format, so they compare
-correctly as text.
-"""
+"""SQLite storage shared by the web process and the worker."""
 import sqlite3
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
@@ -93,7 +89,6 @@ def now(offset_s: float = 0) -> str:
 
 
 def to_utc(value: str) -> str:
-    """Normalise any ISO timestamp (with or without zone; naive means UTC)."""
     parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=UTC)
@@ -112,7 +107,6 @@ def connect() -> sqlite3.Connection:
 
 @contextmanager
 def tx():
-    """One connection, one write transaction, committed on success."""
     conn = connect()
     try:
         conn.execute("BEGIN IMMEDIATE")
@@ -135,7 +129,6 @@ def read():
 
 
 def init():
-    """Create the schema and the demo seed data, once."""
     conn = connect()
     try:
         conn.executescript(SCHEMA)
@@ -145,7 +138,7 @@ def init():
         if conn.execute("SELECT COUNT(*) FROM contacts").fetchone()[0]:
             return
         stamp = now()
-        # Demo readers who are not the test run's: the suite must never mail them.
+        # Not the run's contacts: the suite must never mail them.
         for i, (first, last) in enumerate([("Demo", "Reader"), ("Sample", "Subscriber"),
                                            ("Preview", "Member")], 1):
             conn.execute("INSERT INTO contacts (email, first_name, last_name, created_at) "

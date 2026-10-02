@@ -1,6 +1,4 @@
-"""Baseline: read every surface verification will compare against, before acting.
-
-A reading's value is the point, so each step says in words what it found."""
+"""Baseline: read every surface verification compares against, before acting."""
 import pytest
 
 from example.suite.pages.dashboard import DashboardPage

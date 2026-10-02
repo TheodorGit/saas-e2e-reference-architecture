@@ -1,8 +1,4 @@
-"""Demo ESP App configuration, read from the environment with safe demo defaults.
-
-Nothing here is a secret: the demo login and API token exist so the stack runs
-with no hand-filled .env. Never point this app at real people.
-"""
+"""Demo ESP App configuration, read from the environment with safe demo defaults."""
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,20 +11,20 @@ def _int(name: str, default: int) -> int:
 @dataclass(frozen=True)
 class Settings:
     db_path: Path
-    public_url: str            # base of every link placed in an email
+    public_url: str
     smtp_host: str
     smtp_port: int
     sender: str
     demo_email: str
     demo_password: str
     api_token: str
-    credit_grant: int          # credits the demo account starts with
-    validation_cost: int       # credits per billed address validation
-    validation_free_window_s: int  # re-validating an address in this window is free
-    ingest_delay_s: int        # stats and journal rows land this long after the event
-    ui_latency_ms: int         # simulated server latency on read endpoints
+    credit_grant: int
+    validation_cost: int
+    validation_free_window_s: int
+    ingest_delay_s: int
+    ui_latency_ms: int
     worker_tick_s: float
-    inprocess_worker: bool     # run the worker inside the web process (local dev)
+    inprocess_worker: bool
 
 
 def load() -> Settings:

@@ -2,7 +2,6 @@ from playwright.sync_api import Page, expect
 
 from example.suite.components.numbers import painted_number
 
-# card key -> heading of its drill-down list
 DRILLDOWNS = {"delivered": "Delivered to", "opens": "Opened by", "clicks": "Clicked by"}
 
 
@@ -16,11 +15,9 @@ class ReportPage:
         expect(self.page.get_by_role("heading", name=name, exact=True)).to_be_visible()
 
     def card(self, key: str) -> int:
-        """The card's number, once painted (the label paints first)."""
         return painted_number(self.page.get_by_test_id(f"card-value-{key}"))
 
     def drill(self, key: str) -> list[str]:
-        """Open the card's list of WHO; ends on the list (or its empty state)."""
         heading = DRILLDOWNS[key]
         self.page.get_by_test_id(f"card-{key}").click()
         expect(self.drilldown.get_by_role("heading", name=heading)).to_be_visible()

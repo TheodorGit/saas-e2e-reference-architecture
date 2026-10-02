@@ -1,16 +1,4 @@
-"""Mail a built run report: the email body inline, the full report attached.
-
-Sent on EVERY run - pass, fail or interrupt - because a report that only arrives
-when things go well is not a report. It never raises: a mail problem must not turn
-a green run red. It goes out over plain SMTP, never through the system under test:
-a report about a broken system must still arrive.
-
-Configuration (all optional; no recipients means no mail):
-    E2E_REPORT_TO     comma-separated recipients
-    E2E_REPORT_FROM   sender (default qa-reports@example.com)
-    E2E_SMTP_HOST     default localhost
-    E2E_SMTP_PORT     default 1025
-"""
+"""Mails a built run report: the email body inline, the full report attached."""
 import json
 import os
 import smtplib
@@ -43,7 +31,6 @@ def build_message(run_dir: Path, to: list[str], sender: str) -> EmailMessage:
 
 
 def send_report(run_dir) -> bool:
-    """Mail the report. Returns False, never raises, when it cannot."""
     to = recipients()
     if not to:
         print("[mail] E2E_REPORT_TO not set - report not mailed")

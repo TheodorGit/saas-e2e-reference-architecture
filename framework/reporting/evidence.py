@@ -1,20 +1,4 @@
-"""A failed test's evidence: one folder, named after the test, holding what each
-failed check saw - of the kind that check was about.
-
-    evidence/test_send_to_a_segment/
-        test.txt                         the test, then every check: number, result, check
-        06 the email they received.html
-        06 the email they received.eml
-        06 the email they received - headers.txt
-
-Files are numbered by the check they belong to and named for what they are. The
-check itself, and whether it failed, is in test.txt beside its number - never in a
-file name - so names stay short and a report's paths fit Windows. A run token in a
-label is cut to its slug (the folder already says which run). An inbox check keeps
-the email, an API check the request and response, a reconciliation the rows it
-read; a screen check keeps its screen (framework/ui/tracing.py adds those, with the
-trace and a video). A passing test keeps nothing.
-"""
+"""A failed test's evidence folder and its file names."""
 import re
 from pathlib import Path
 
@@ -25,17 +9,15 @@ from framework.reporting.recorder import FAILED, SKIPPED, StepRecorder, safe_nam
 EVIDENCE_DIR = "evidence"
 ID_FILE = "test.txt"
 TRACE_FILE = "00 trace.zip"
-LABEL_MAX = 50   # labels are short phrases a test names; this only stops a careless one
+LABEL_MAX = 50
 _UNSAFE = re.compile(r'[<>:"/\|?*\x00-\x1f]+')
 
 
 def clean(text: str) -> str:
-    """Text safe in a file name on every platform; spaces kept for reading."""
     return re.sub(r"\s+", " ", _UNSAFE.sub("_", text or "")).strip(" ._")
 
 
 def middle(text: str, limit: int) -> str:
-    """`text` cut to `limit` in the middle, so both its ends survive."""
     if len(text) <= limit:
         return text
     head, tail = limit // 2, (limit - 1) // 2
@@ -43,13 +25,10 @@ def middle(text: str, limit: int) -> str:
 
 
 def check_file(number: int, label: str = "screen", ext: str = "png") -> str:
-    """'06 the email they received.html'; a check's screen is '04 screen.png'."""
     return f"{number:02d} {middle(clean(tokens.shorten(label)), LABEL_MAX) or 'file'}.{ext}"
 
 
 def folder_name(recorder: StepRecorder) -> str:
-    """The test's function name, without parameters: 'test_send', not
-    'test_send[chromium]'. Folders and videos are named by it."""
     return safe_name(recorder.nodeid.split("::")[-1].split("[")[0])
 
 
@@ -59,8 +38,7 @@ def title_of(recorder: StepRecorder) -> str:
 
 
 def write_index(recorder: StepRecorder, folder: Path):
-    """test.txt: the test's nodeid (what the report matches on), its title, then
-    every check with its number and result."""
+    # The report matches on the first line, the nodeid.
     lines = [recorder.nodeid, title_of(recorder)]
     for number, step in enumerate(recorder.steps, 1):
         result = (step.get("status") or SKIPPED).upper().replace("_", " ")
@@ -69,8 +47,6 @@ def write_index(recorder: StepRecorder, folder: Path):
 
 
 def folder_for(recorder: StepRecorder, run_dir: Path) -> Path:
-    """This test's evidence folder, created once. Two tests sharing a name get
-    two folders; each says whose it is in test.txt."""
     existing = getattr(recorder, "_evidence_folder", None)
     if existing is not None:
         return existing
@@ -86,8 +62,6 @@ def folder_for(recorder: StepRecorder, run_dir: Path) -> Path:
 
 
 def save_attachments(recorder: StepRecorder, run_dir: Path) -> list[Path]:
-    """Write what each FAILED check attached; a passing check's are dropped. Called
-    once the test has ended, so test.txt is refreshed with every check."""
     written = []
     for number, items in sorted(recorder.attachments.items()):
         if recorder.steps[number - 1].get("status") != FAILED:
