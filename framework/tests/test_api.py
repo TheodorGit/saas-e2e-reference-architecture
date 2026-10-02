@@ -55,7 +55,7 @@ def test_a_failed_call_keeps_the_exchange_as_evidence(tmp_path):
     api.call("DELETE", "/items/{item_id}", item_id=7)
     written = save_attachments(api.steps, tmp_path)
     assert [p.name for p in written] == [
-        "02_check failed - DELETE _items_{item_id} - request and response.txt"]
+        "02 request and response.txt"]
     assert "HTTP 500" in written[0].read_text() and "boom" in written[0].read_text()
 
 
@@ -132,13 +132,14 @@ def test_clean(api_recorder):
 
 def test_a_test_cannot_pass_while_holding_a_failed_step(pytester, monkeypatch):
     monkeypatch.setenv("E2E_RESULTS_DIR", str(pytester.path / "reports"))
+    monkeypatch.delenv("E2E_RUN_LABEL", raising=False)
     monkeypatch.delenv("E2E_REPORT_TO", raising=False)
     pytester.makeconftest('pytest_plugins = ["framework.pytest_plugin"]\n')
     pytester.makepyfile(test_hold=HOLDING)
     result = pytester.runpytest_subprocess("-p", "no:cacheprovider")
     # Held failures: body passed, teardown errors. Raised in the body: failed once.
     result.assert_outcomes(passed=3, failed=1, errors=2)
-    run_dir = next((pytester.path / "reports").glob("run_*"))
+    run_dir = next(p for p in (pytester.path / "reports").iterdir() if p.is_dir())
     manifest = json.loads((run_dir / "manifest.json").read_text())
     status = {t["func"]: t["status"] for t in manifest["tests"]}
     assert status == {"test_holds_a_failure": "failed", "test_holds_a_soft_step": "failed",

@@ -62,27 +62,25 @@ def _step_files(run_dir: Path) -> dict:
     return by_nodeid
 
 
-TRACE_FILE = "00_trace.zip"
-
-
 def _evidence(run_dir: Path) -> dict:
     """{nodeid: {folder, trace, files: {check number: [(label, path)]}}}, from each
-    evidence folder's id file; paths are relative to the run folder."""
+    evidence folder's id file; paths are relative to the run folder. A file
+    '06 the email they received.html' is linked as 'the email they received (.html)'."""
     found = {}
+    trace = evidence.TRACE_FILE
     for id_file in sorted((run_dir / evidence.EVIDENCE_DIR).glob(f"*/{evidence.ID_FILE}")):
         folder = id_file.parent
         nodeid = id_file.read_text(encoding="utf-8").splitlines()[0].strip()
         rel = f"{evidence.EVIDENCE_DIR}/{folder.name}"
         files: dict = {}
         for item in sorted(folder.iterdir()):
-            number, _, rest = item.name.partition("_")
+            number, _, rest = item.stem.partition(" ")
             if number.isdigit() and int(number) > 0:
-                label = "Screen" if item.suffix == ".png" else \
-                    f"{rest.rsplit(' - ', 1)[-1].rsplit('.', 1)[0]} ({item.suffix})"
+                label = "Screen" if item.suffix == ".png" else f"{rest} ({item.suffix})"
                 files.setdefault(int(number), []).append((label, f"{rel}/{item.name}"))
         found[nodeid] = {
             "folder": rel, "files": files,
-            "trace": f"{rel}/{TRACE_FILE}" if (folder / TRACE_FILE).exists() else None}
+            "trace": f"{rel}/{trace}" if (folder / trace).exists() else None}
     return found
 
 
@@ -297,7 +295,8 @@ def _test_block(test: dict) -> str:
                  f'(open with playwright show-trace).' if kept["trace"] else "")
         body += (f'<div style="margin:6px 0;font-size:12px;color:{MUTED};">Evidence folder: '
                  f'<a href="{_esc(quote(kept["folder"]))}/">{_esc(kept["folder"])}/</a> - '
-                 f'files are numbered by the check they belong to.{trace}</div>')
+                 f'files are numbered by the check they belong to, listed in test.txt.'
+                 f'{trace}</div>')
     steps = test["steps"]
     passed = sum(1 for st in steps if st.get("status") == PASSED)
     count = f"{passed}/{len(steps)} steps" if steps else "no steps"

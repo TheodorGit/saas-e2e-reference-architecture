@@ -3,7 +3,7 @@
 #     docker compose up --build --exit-code-from tests
 #
 # runs the suite - watch the UI tests live at http://localhost:7900 - writes
-# reports/<bugs or clean>/run_<id>/ (reports/latest.html opens the newest), and exits
+# reports/<run id>-<bugs or clean>/ (reports/latest.html opens the newest), and exits
 # with pytest's code. E2E_HEADLESS=1 runs it headless. No real account, key or .env is
 # needed. DEMO_ESP_BUGS=<flag>[,<flag>] injects defects (example/app/bugs.py).
 services:
@@ -64,7 +64,8 @@ services:
     environment:
       DEMO_ESP_URL: http://localhost:8000
       E2E_MAILPIT_URL: http://mailpit:8025
-      E2E_RESULTS_DIR: /srv/reports/${DEMO_ESP_BUGS:-clean}
+      E2E_RESULTS_DIR: /srv/reports
+      E2E_RUN_LABEL: ${DEMO_ESP_BUGS:-clean}
       E2E_LATEST_PAGE: /srv/reports/latest.html
       E2E_ENVIRONMENT: "docker compose, bugs: ${DEMO_ESP_BUGS:-none}"
       # Headed and slowed down so a person can watch; E2E_HEADLESS=1 for CI.

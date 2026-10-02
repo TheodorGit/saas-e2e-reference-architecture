@@ -1,32 +1,32 @@
 """A failed test's evidence: one folder, named after the test, holding what each
 failed check saw - of the kind that check was about.
 
-    evidence/test_send_to_a_segment_chromium/
-        06_check failed - nobody else got it - the email they received.html
-        06_check failed - nobody else got it - the email they received.eml
-        test.txt                      the test's nodeid and title
+    evidence/test_send_to_a_segment/
+        test.txt                         the test, then every check: number, result, check
+        06 the email they received.html
+        06 the email they received.eml
+        06 the email they received - headers.txt
 
-Files are numbered by the check's position in the test and named after it; a
-failed check says "check failed - <check>", so a check named for what should be
-true cannot be read backwards. A run token in a name is cut to its slug (the folder
-already says which run), and a name stays within FILE_MAX characters, shortened in
-the middle if it must be, so a report's paths fit Windows. An inbox check keeps the
-email, an API check the request and response, a reconciliation the rows it read; a
-screen check keeps its screen (framework/ui/tracing.py adds those, with the trace
-and a video). A passing test keeps nothing.
+Files are numbered by the check they belong to and named for what they are. The
+check itself, and whether it failed, is in test.txt beside its number - never in a
+file name - so names stay short and a report's paths fit Windows. A run token in a
+label is cut to its slug (the folder already says which run). An inbox check keeps
+the email, an API check the request and response, a reconciliation the rows it
+read; a screen check keeps its screen (framework/ui/tracing.py adds those, with the
+trace and a video). A passing test keeps nothing.
 """
 import re
 from pathlib import Path
 
 from framework import tokens
 from framework.reporting import profiles
-from framework.reporting.recorder import FAILED, StepRecorder, safe_name
+from framework.reporting.recorder import FAILED, SKIPPED, StepRecorder, safe_name
 
 EVIDENCE_DIR = "evidence"
 ID_FILE = "test.txt"
-FILE_MAX = 100   # a whole evidence file name: keeps a report's paths inside Windows' 260
-LABEL_MAX = 40
-_UNSAFE = re.compile(r'[<>:"/\\|?*\x00-\x1f]+')
+TRACE_FILE = "00 trace.zip"
+LABEL_MAX = 50   # labels are short phrases a test names; this only stops a careless one
+_UNSAFE = re.compile(r'[<>:"/\|?*\x00-\x1f]+')
 
 
 def clean(text: str) -> str:
@@ -42,19 +42,30 @@ def middle(text: str, limit: int) -> str:
     return f"{text[:head].rstrip()}~{text[len(text) - tail:].lstrip()}"
 
 
-def check_file(number: int, step: dict, label: str = "", ext: str = "png") -> str:
-    """'06_check failed - nobody else got it - the email.html', or
-    '04_the list shows it sent.png' for a check that passed."""
-    failed = "check failed - " if step.get("status") == FAILED else ""
-    tail = f" - {middle(clean(tokens.shorten(label)), LABEL_MAX)}" if label else ""
-    room = max(10, FILE_MAX - len(f"{number:02d}_{failed}{tail}.{ext}"))
-    name = middle(clean(tokens.shorten(step.get("step") or "check")), room)
-    return f"{number:02d}_{failed}{name}{tail}.{ext}"
+def check_file(number: int, label: str = "screen", ext: str = "png") -> str:
+    """'06 the email they received.html'; a check's screen is '04 screen.png'."""
+    return f"{number:02d} {middle(clean(tokens.shorten(label)), LABEL_MAX) or 'file'}.{ext}"
+
+
+def folder_name(recorder: StepRecorder) -> str:
+    """The test's function name, without parameters: 'test_send', not
+    'test_send[chromium]'. Folders and videos are named by it."""
+    return safe_name(recorder.nodeid.split("::")[-1].split("[")[0])
 
 
 def title_of(recorder: StepRecorder) -> str:
     func = recorder.nodeid.split("::")[-1].split("[")[0]
     return profiles.profile_for(recorder.nodeid).title_for(func)
+
+
+def write_index(recorder: StepRecorder, folder: Path):
+    """test.txt: the test's nodeid (what the report matches on), its title, then
+    every check with its number and result."""
+    lines = [recorder.nodeid, title_of(recorder)]
+    for number, step in enumerate(recorder.steps, 1):
+        result = (step.get("status") or SKIPPED).upper().replace("_", " ")
+        lines.append(f"{number:02d}  {result}  {step.get('step', '')}")
+    (folder / ID_FILE).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def folder_for(recorder: StepRecorder, run_dir: Path) -> Path:
@@ -64,27 +75,29 @@ def folder_for(recorder: StepRecorder, run_dir: Path) -> Path:
     if existing is not None:
         return existing
     root = Path(run_dir) / EVIDENCE_DIR
-    base = safe_name(recorder.nodeid.split("::")[-1])
+    base = folder_name(recorder)
     folder, n = root / base, 2
     while folder.exists():
         folder, n = root / f"{base}_{n}", n + 1
     folder.mkdir(parents=True)
-    (folder / ID_FILE).write_text(f"{recorder.nodeid}\n{title_of(recorder)}\n",
-                                  encoding="utf-8")
+    write_index(recorder, folder)
     recorder._evidence_folder = folder
     return folder
 
 
 def save_attachments(recorder: StepRecorder, run_dir: Path) -> list[Path]:
-    """Write what each FAILED check attached; a passing check's are dropped."""
+    """Write what each FAILED check attached; a passing check's are dropped. Called
+    once the test has ended, so test.txt is refreshed with every check."""
     written = []
     for number, items in sorted(recorder.attachments.items()):
-        step = recorder.steps[number - 1]
-        if step.get("status") != FAILED:
+        if recorder.steps[number - 1].get("status") != FAILED:
             continue
         folder = folder_for(recorder, run_dir)
         for label, ext, content in items:
-            path = folder / check_file(number, step, label, ext)
+            path = folder / check_file(number, label, ext)
             path.write_bytes(content)
             written.append(path)
+    folder = getattr(recorder, "_evidence_folder", None)
+    if folder is not None:
+        write_index(recorder, folder)
     return written

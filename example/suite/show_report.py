@@ -12,6 +12,7 @@ import os
 import re
 import time
 from pathlib import Path
+from urllib.parse import unquote
 
 import requests
 from playwright.sync_api import sync_playwright
@@ -36,7 +37,7 @@ def report_email_id(mailpit: str, sender: str) -> str | None:
 def latest_report(latest_page: Path) -> Path | None:
     """The report latest.html points at."""
     match = re.search(r'url=([^"]+)', latest_page.read_text(encoding="utf-8"))
-    return (latest_page.parent / match.group(1).replace("%20", " ")) if match else None
+    return (latest_page.parent / unquote(match.group(1))) if match else None
 
 
 # The element that scrolls under the screen's centre: Mailpit scrolls an inner panel,

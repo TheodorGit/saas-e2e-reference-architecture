@@ -49,12 +49,12 @@ jobs:
       # The test runner writes as root; give the reports back to this job's user.
       - if: always()
         run: sudo chown -R "$(id -u):$(id -g)" reports
-      - run: python scripts/check_flag_run.py reports/clean
+      - run: python scripts/check_flag_run.py reports
       - if: always()
         uses: actions/upload-artifact@v4
         with:
           name: report-clean
-          path: reports/clean/
+          path: reports/*-clean/
 
   # The bug matrix is the one source for which flags exist.
   flags:
@@ -99,12 +99,12 @@ jobs:
       # The test runner writes as root; give the reports back to this job's user.
       - if: always()
         run: sudo chown -R "$(id -u):$(id -g)" reports
-      - run: python scripts/check_flag_run.py "reports/${DEMO_ESP_BUGS}" --flag "${DEMO_ESP_BUGS}"
+      - run: python scripts/check_flag_run.py reports --flag "${DEMO_ESP_BUGS}"
       - if: always()
         uses: actions/upload-artifact@v4
         with:
           name: report-${{ matrix.flag }}
-          path: reports/${{ matrix.flag }}/
+          path: reports/*-${{ matrix.flag }}/
 
   # The sample-report site: the clean run and one red run, refreshed on every push to
   # main once everything above held. Needs Settings > Pages > Source: GitHub Actions.
@@ -124,15 +124,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      # Each artifact holds one run folder (the wildcard kept it); both land in reports/.
       - uses: actions/download-artifact@v4
         with:
           name: report-clean
-          path: reports/clean
+          path: reports
       - uses: actions/download-artifact@v4
         with:
           name: report-suppression_leak
-          path: reports/suppression_leak
-      - run: python scripts/build_site.py --green reports/clean --red reports/suppression_leak --out site
+          path: reports
+      - run: python scripts/build_site.py --reports reports --red suppression_leak --out site
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

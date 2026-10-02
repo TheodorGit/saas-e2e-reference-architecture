@@ -66,13 +66,14 @@ Which test must catch each defect is `example/suite/bug_matrix.py`. To hold a fi
 run to it (needs Python 3.11+ on the host and `pip install -e .`):
 
 ```
-python scripts/check_flag_run.py reports/clean
-python scripts/check_flag_run.py reports/suppression_leak --flag suppression_leak
+python scripts/check_flag_run.py reports
+python scripts/check_flag_run.py reports --flag suppression_leak
 ```
 
-It sorts every red test into the flag's guard (red at its declared check), a declared
-impact of the flag (with the reason), or a SEPARATE DEFECT - which fails the check -
-and writes the verdict to `matrix_check.txt` next to the report.
+It takes the newest finished run for the flag (or the newest clean run), sorts every
+red test into the flag's guard (red at its declared check), a declared impact of the
+flag (with the reason), or a SEPARATE DEFECT - which fails the check - and writes the
+verdict to `matrix_check.txt` next to the report.
 
 ## Iterating on the suite
 
@@ -108,7 +109,8 @@ python -m venv .venv
 
 ## Reports
 
-Each run writes one folder, `reports/<clean or flags>/run_<id>/`:
+Each run writes one folder, `reports/<run id>-<clean or flags>/`, where the run id is
+the date and time plus a short random part (`1002_1514ab12-suppression_leak`):
 
 | File | What |
 |---|---|
@@ -119,7 +121,8 @@ Each run writes one folder, `reports/<clean or flags>/run_<id>/`:
 | `ledger.json` | What the run did, spent and created |
 | `steps__*.json` | Every recorded step, per test |
 | `videos/` | A video of every browser test, pass or fail, linked from its test in the report |
-| `evidence/<test>/` | What each failed check saw, numbered by check: the email for an inbox check, the request and response for an API check, the rows for a reconciliation; for a failed screen check, its screen plus `00_trace.zip` (open with `playwright show-trace`) |
+| `evidence/<test>/` | What each failed check saw, as `NN <what it is>.ext` numbered by check (`06 the email they received.html`): the email for an inbox check, the request and response for an API check, the rows for a reconciliation; for a failed screen check, `NN screen.png` plus `00 trace.zip` (open with `playwright show-trace`) |
+| `evidence/<test>/test.txt` | The test, then every check with its number and result, so each file's number says which check it belongs to |
 | `matrix_check.txt` | The bug-matrix verdict, when `check_flag_run.py` was run |
 
 ## CI
@@ -137,7 +140,7 @@ replaces the published site. It needs one repository setting: Settings > Pages >
 Source: GitHub Actions. To preview it locally (Windows included):
 
 ```
-python scripts/build_site.py --green reports/clean --red reports/suppression_leak --out site
+python scripts/build_site.py --reports reports --red suppression_leak --out site
 python -m http.server -d site
 ```
 

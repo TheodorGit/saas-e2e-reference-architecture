@@ -13,11 +13,11 @@ only when that is the question: when a UI check (a step marked ui=True) failed, 
 the test broke outside any check. An inbox, API or reconciliation failure keeps
 what THAT check saw instead (framework/reporting/evidence.py).
 
-    evidence/test_bulk_tag_chromium/
-        00_trace.zip                  every action, grouped by check
+    evidence/test_bulk_tag/
+        00 trace.zip                  every action, grouped by check
                                       (open with playwright show-trace)
-        01_filter by tag.png          the screen after each UI check,
-        02_check failed - bulk add a tag.png   numbered by the check's position
+        01 screen.png                 the screen after each UI check, numbered
+        02 screen.png                 by the check's position (test.txt names it)
 
 A screen is taken only after a UI check, never before a page is open, and not
 when identical to the last one kept - except a failed check's, always kept.
@@ -25,9 +25,9 @@ when identical to the last one kept - except a failed check's, always kept.
 from pathlib import Path
 
 from framework.reporting import evidence
-from framework.reporting.recorder import FAILED, StepRecorder, safe_name
+from framework.reporting.recorder import FAILED, StepRecorder
 
-TRACE_FILE = "00_trace.zip"
+TRACE_FILE = evidence.TRACE_FILE
 VIDEOS_DIR = "videos"
 NO_PAGE = ("", "about:blank")
 
@@ -61,7 +61,7 @@ class Evidence:
         if png == self._last and step.get("status") != FAILED:
             return  # unchanged since the last screen kept
         self._last = png
-        self.shots.append((evidence.check_file(number, step), png))
+        self.shots.append((evidence.check_file(number), png))
 
     def _close_group(self):
         if self._group_open:
@@ -97,7 +97,7 @@ class Evidence:
         """videos/<test name>.webm, recorded on the test so the report links it."""
         folder = run_dir / VIDEOS_DIR
         folder.mkdir(parents=True, exist_ok=True)
-        base = safe_name(self.recorder.nodeid.split("::")[-1])
+        base = evidence.folder_name(self.recorder)
         target, n = folder / f"{base}.webm", 2
         while target.exists():
             target, n = folder / f"{base}_{n}.webm", n + 1

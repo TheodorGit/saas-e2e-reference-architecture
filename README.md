@@ -123,7 +123,7 @@ Remove-Item Env:DEMO_ESP_BUGS
 
 Try `automation_ignores_unsubscribe` to see the automation email a contact who
 unsubscribed. There are 19 defects to choose from, listed in
-[`example/app/bugs.py`](example/app/bugs.py); each run's report lands in
-`reports/<defect>/`. CI runs the clean app and every one of them on each push: the
+[`example/app/bugs.py`](example/app/bugs.py); each run's report lands in its own
+folder, `reports/<run id>-<defect>/`. CI runs the clean app and every one of them on each push: the
 clean run must be green, and each defect must go red in the test that guards it, and
 nowhere unexplained.

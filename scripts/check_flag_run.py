@@ -11,8 +11,9 @@ sorted into one of three groups:
 A declared impact that stayed green fails the check too (the matrix is stale).
 Every test must be guarded by a flag or listed in NOT_GUARDED with a reason.
 
-Reads the newest run_* under <results-root>, prints the verdict and writes it to
-matrix_check.txt in that run's folder, next to its report.
+Reads the newest finished run labelled for the flag (<run id>-<flag>, or -clean)
+under <results-root>, prints the verdict and writes it to matrix_check.txt in that
+run's folder, next to its report.
 """
 import argparse
 import sys
@@ -25,14 +26,7 @@ from example.suite import profile  # noqa: E402,F401  (report titles)
 from example.suite.bug_matrix import GUARDS, NOT_GUARDED  # noqa: E402
 from framework.reporting.recorder import FAILED  # noqa: E402
 from framework.reporting.report_builder import load_run  # noqa: E402
-
-
-def newest_run(root: Path) -> Path:
-    runs = sorted((p for p in root.glob("run_*") if (p / "manifest.json").exists()),
-                  key=lambda p: (p / "manifest.json").stat().st_mtime)
-    if not runs:
-        sys.exit(f"no finished run under {root}")
-    return runs[-1]
+from framework.tokens import newest_run  # noqa: E402
 
 
 def first_failed_step(test: dict) -> str:
@@ -94,9 +88,12 @@ def main() -> int:
     if args.flag and args.flag not in GUARDS:
         print(f"unknown flag {args.flag!r}")
         return 1
-    run_dir = newest_run(args.root)
-    lines, problems = check(load_run(run_dir), args.flag)
     label = args.flag or "clean"
+    run_dir = newest_run(args.root, label)
+    if run_dir is None:
+        print(f"no finished {label} run under {args.root}")
+        return 1
+    lines, problems = check(load_run(run_dir), args.flag)
     verdict = (f"[{label}] NOT as the matrix requires:\n- " + "\n- ".join(problems)
                if problems else f"[{label}] as the matrix requires")
     text = "\n".join([f"[{label}] {run_dir}", *(f"  {ln}" for ln in lines), verdict]) + "\n"

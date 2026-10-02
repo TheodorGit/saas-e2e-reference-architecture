@@ -51,12 +51,31 @@ def shorten(text: str) -> str:
     return token.sub(lambda m: m.group("slug"), text or "")
 
 
+RUN_ID_PATTERN = r"\d{4}_\d{4}[0-9a-f]{4}"
+
+
 def results_root() -> Path:
     return Path(os.getenv("E2E_RESULTS_DIR", "reports"))
 
 
+def run_label() -> str:
+    """What this run is, for its folder name (E2E_RUN_LABEL: 'clean', a defect)."""
+    return re.sub(r'[<>:"/\\|?*\s]+', "_", os.getenv("E2E_RUN_LABEL", "")).strip("_.")
+
+
 def run_dir() -> Path:
-    """This run's artifact directory; created on first use."""
-    path = results_root() / f"run_{current_run_id()}"
+    """This run's artifact directory, '<run id>-<label>'; created on first use."""
+    label = run_label()
+    path = results_root() / (f"{current_run_id()}-{label}" if label else current_run_id())
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def newest_run(root: Path, label: str, marker: str = "manifest.json") -> Path | None:
+    """The newest finished run under `root` with exactly this label: finished means
+    it holds `marker`, and the newest is the one whose marker was written last."""
+    name = re.compile(rf"{RUN_ID_PATTERN}-{re.escape(label)}")
+    root = Path(root)
+    runs = [p for p in (root.iterdir() if root.is_dir() else [])
+            if p.is_dir() and name.fullmatch(p.name) and (p / marker).exists()]
+    return max(runs, key=lambda p: (p / marker).stat().st_mtime, default=None)

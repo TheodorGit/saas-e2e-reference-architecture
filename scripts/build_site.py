@@ -1,10 +1,11 @@
 """Build the sample-report site: a green run and a red run, as GitHub Pages serves them.
 
-    python scripts/build_site.py --green reports/clean --red reports/suppression_leak --out site
+    python scripts/build_site.py --reports reports --red suppression_leak --out site
 
-Each source is a results root; its newest finished run_* is copied whole, so every link
-inside the report (videos, evidence, the mailed email) keeps working. index.html is a
-landing page with one card per run. CI builds and deploys it on every push to main.
+From the results root, the newest finished clean run and the newest run of the --red
+defect are each copied whole, so every link inside the report (videos, evidence, the
+mailed email) keeps working. index.html is a landing page with one card per run. CI
+builds and deploys it on every push to main.
 """
 import argparse
 import html
@@ -26,6 +27,7 @@ from framework.reporting.report_builder import (  # noqa: E402
     PAGE,
     STATUS,
 )
+from framework.tokens import newest_run  # noqa: E402
 
 SOURCE_NOTE = "Built by CI from the latest push to main."
 
@@ -35,14 +37,6 @@ def long_path(path: Path) -> str:
     and evidence file names in a report can be long."""
     full = str(path.resolve())
     return "\\\\?\\" + full if os.name == "nt" and not full.startswith("\\\\?\\") else full
-
-
-def newest_run(root: Path) -> Path:
-    runs = sorted((p for p in root.glob("run_*") if (p / "summary.json").exists()),
-                  key=lambda p: (p / "summary.json").stat().st_mtime)
-    if not runs:
-        sys.exit(f"no finished run with a report under {root}")
-    return runs[-1]
 
 
 def _when(iso: str) -> str:
@@ -111,19 +105,21 @@ def landing(green: dict, red: dict, flag: str) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--green", type=Path, required=True)
-    parser.add_argument("--red", type=Path, required=True)
+    parser.add_argument("--reports", type=Path, required=True)
+    parser.add_argument("--red", required=True, help="the defect whose run is the red sample")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     if args.out.exists() and any(args.out.iterdir()):
         sys.exit(f"{args.out} is not empty; build into a new folder")
     summaries = {}
-    for folder, root in (("green", args.green), ("red", args.red)):
-        run = newest_run(root)
+    for folder, label in (("green", "clean"), ("red", args.red)):
+        run = newest_run(args.reports, label, "summary.json")
+        if run is None:
+            sys.exit(f"no finished {label} run with a report under {args.reports}")
         shutil.copytree(long_path(run), long_path(args.out / folder))
         summaries[folder] = json.loads((run / "summary.json").read_text(encoding="utf-8"))
     (args.out / "index.html").write_text(
-        landing(summaries["green"], summaries["red"], args.red.name), encoding="utf-8")
+        landing(summaries["green"], summaries["red"], args.red), encoding="utf-8")
     print(f"site built in {args.out}: green {summaries['green']['verdict']}, "
           f"red {summaries['red']['verdict']}")
     return 0

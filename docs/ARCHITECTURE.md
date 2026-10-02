@@ -209,13 +209,13 @@ normally. A failed test keeps one evidence folder, named after it, holding what 
 failed check saw - of the kind that check was about: an inbox check keeps the email
 (`.html`, `.eml`, headers), an API check the request and response, a reconciliation
 the rows or report it read, and a screen check (`ui=True`) its screen, with the trace
-of the test. Files are numbered by the check they belong to and named
-`NN_check failed - <check> - <what it is>`, so a check named for what should be true
-cannot be read backwards. A run token in a name is cut to its slug - the folder
-already says which run - and a name stays within 100 characters, shortened in the
-middle if it must be, so a downloaded report unpacks on Windows. The report links
-each check to its own evidence. A
-passing test keeps no evidence; collecting it never changes an outcome.
+of the test. Files are numbered by the check they belong to and named for what they
+are: `06 the email they received.html`, `04 screen.png`. The check itself never goes
+into a file name; the folder's `test.txt` lists every check with its number and
+result, so a name stays short - and a downloaded report unpacks on Windows - however
+long the check's sentence. A run token in a name is cut to its slug: the run's folder
+already says which run. The report links each check to its own evidence. A passing
+test keeps no evidence; collecting it never changes an outcome.
 Separately, every browser test keeps a video, pass or fail, linked from the test in
 the report - so a person can watch what the run did - and the example's runner shows
 the browser live (headed on a virtual screen, viewable in a browser) unless told to

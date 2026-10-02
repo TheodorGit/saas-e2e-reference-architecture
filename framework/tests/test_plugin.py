@@ -38,6 +38,7 @@ def _logging_test(name, body=""):
 @pytest.fixture
 def toy_run(pytester, monkeypatch):
     monkeypatch.setenv("E2E_RESULTS_DIR", str(pytester.path / "reports"))
+    monkeypatch.delenv("E2E_RUN_LABEL", raising=False)
     monkeypatch.delenv("E2E_ALLOW_DESTRUCTIVE", raising=False)
     monkeypatch.delenv("E2E_REPORT_TO", raising=False)
     pytester.makeconftest(CONFTEST)
@@ -59,7 +60,7 @@ def test_danger():
     raise RuntimeError('must never run without the opt-in')
 """)
     result = pytester.runpytest_subprocess("-p", "no:cacheprovider")
-    run_dir = next((pytester.path / "reports").glob("run_*"))
+    run_dir = next(p for p in (pytester.path / "reports").iterdir() if p.is_dir())
     return pytester, result, run_dir
 
 

@@ -12,8 +12,9 @@ and gets:
             api_recorder (factory; every call and check a soft step),
             api_coverage (every API call this session, for docs coverage)
 
-Artifacts land in reports/run_<run_id>/ (E2E_RESULTS_DIR overrides the root), and
-reports/latest.html always opens the newest report (E2E_LATEST_PAGE overrides).
+Artifacts land in reports/<run_id>-<label>/ (E2E_RESULTS_DIR overrides the root;
+E2E_RUN_LABEL names the run, e.g. 'clean'), and reports/latest.html always opens the
+newest report (E2E_LATEST_PAGE overrides).
 """
 import os
 from pathlib import Path
