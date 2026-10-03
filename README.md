@@ -69,10 +69,9 @@ received. The leak also shows in billing, the dashboard and the report:
 
 ## Context
 
-This architecture is based on an end-to-end suite I built for Campaign Refinery, an
-email-marketing SaaS, and is shared with the company's permission. It is a clean-room
-re-implementation: the example app is fictional, and no internal data, code or product
-details from the original are included.
+This architecture is based on an end-to-end suite I built for a production platform, an
+email-marketing SaaS. It is a clean-room re-implementation: the example app is
+fictional, and no internal data, code or product details from the original are included.
 
 ## For technical teams
 
