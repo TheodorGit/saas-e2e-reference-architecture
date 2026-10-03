@@ -74,8 +74,9 @@ def landing(green: dict, red: dict, flag: str) -> str:
         card("green", green, "A clean run",
              "Every action is reconciled on a surface independent of the one that drove "
              "it: the inbox, the billing journal, the reports, the API and the dashboard.")
-        + card("red", red, f"A defect switched on: {flag}",
-               f"The app is broken on purpose ({FLAGS.get(flag, flag)}). The test that "
+        + card("red", red, "A defect switched on",
+               "The app is broken on purpose: one of its rules is switched off "
+               f"(here, {FLAGS.get(flag, flag)}). The test that "
                "guards it fails at the exact check and keeps what that check saw, and "
                "every other surface the defect reaches says so too."))
     return (

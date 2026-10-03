@@ -5,16 +5,17 @@ why a simple test misses it, and the pattern that catches it. Each one is a defe
 switch in the example app, and the named test fails when it is switched on
 (`example/suite/bug_matrix.py`).
 
-## 1. An excluded recipient still gets the email
+## 1. A rule the app must enforce is ignored
 
-**Symptom.** A send reaches someone on an address suppression list.
-**Why a simple test misses it.** It checks that the send succeeded, or that the
-recipient count looks right. A count does not show who is missing or extra, and an empty
-inbox for the excluded address means nothing if the send never happened.
-**The pattern.** Put the excluded address in the audience, so only the exclusion keeps
-it out, and add a positive control: an ordinary recipient whose copy must arrive.
-Collect each recipient's own copy, and check that every audience member was either
-delivered or excluded, not both (patterns 9, 13).
+**Symptom.** The app skips one of its rules and still reports success. In the example, a
+send reaches someone on an address suppression list.
+**Why a simple test misses it.** It checks that the action succeeded, or that a count
+looks right. A count does not show who is missing or extra, and seeing nothing happen to
+the excluded case means nothing if the action never ran.
+**The pattern.** Include the case the rule exists for, so only the rule keeps it out,
+and add a positive control: an ordinary case that must go through. Here, the excluded
+address is in the audience, each recipient's own copy is collected, and every
+audience member must be either delivered or excluded, not both (patterns 9, 13).
 **In the example.** `suppression_leak` -> `test_email_batch_send_with_suppression`.
 
 ## 2. One action is billed twice

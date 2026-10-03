@@ -19,8 +19,9 @@ defect switch in the example app that makes it fail at its check.
 
 ## What it tests
 
-- **Email batches** reach their audience minus the address suppression list, checked
-  with a positive control, and every delivered email meets the content standard.
+- **Email batches** reach their audience minus the contacts excluded from it (the
+  suppression list), checked with a positive control, and every delivered email meets
+  the content standard.
 - **An automation**: adding a tag sends an email after a delay, and a contact who
   unsubscribed gets nothing.
 - **Address validation** is billed once, and free inside its rolling window.
@@ -56,13 +57,16 @@ The attached report:
 
 ![The green run's full report](docs/images/report-green.png)
 
-**A red run, with `suppression_leak` switched on.**
+**A red run: the app is broken on purpose.**
+
+One rule the app must enforce is switched off, and the app still reports success. In
+this example the rule is the suppression list, so contacts on it get the email anyway.
 
 The email lists each failure with what was expected, what happened and the check:
 
 ![The red run's report email](docs/images/email-red.png)
 
-The attached report shows the failed check next to the email the suppressed contact
+The attached report shows the failed check next to the email the excluded contact
 received. The leak also shows in billing, the dashboard and the report:
 
 ![The red run's full report](docs/images/report-red.png)
