@@ -254,10 +254,11 @@ pytest_plugins = ["framework.pytest_plugin"]
 
 def pytest_configure(config):
     for line in ("my_suite/tests/baseline/ = 0", "my_suite/tests/actions/ = 1",
-                 "my_suite/tests/verification/ = 2"):
+                 "my_suite/tests/api/ = 1", "my_suite/tests/verification/ = 2"):
         config.addinivalue_line("e2e_stages", line)
 ```
 
+The number is the stage's rank: folders with the same rank run in the same stage.
 Setting `e2e_stages` here keeps the option out of runs that do not load the plugin.
 **Example:** `example/suite/conftest.py`.
 
@@ -319,6 +320,8 @@ is #413".
 Each action test acts through the UI or API, ends every UI action on its result, and
 records what it did once a different surface confirms it. The safety guards
 (`assert_within_cap`, `assert_owned`) run before anything is sent.
+A cost that depends on timing is decided per action from the run's own record of
+when the window opened (`framework.pipeline.windows`).
 
 Mark every check of what is on screen `ui=True`. Inside other checks, `attach` what the
 check read before asserting: the email for an inbox check, the rows or response for the
@@ -335,9 +338,8 @@ component. Buttons with icon words are matched with `label_pattern`.
 
 Poll each slow surface for the real condition within a budget (`poll_until`), then
 compare it exactly with the ledger: sets rather than counts (`framework.pipeline.sets`),
-rolling windows decided per action (`framework.pipeline.windows`), and policy observed
-rather than asserted (`framework.pipeline.expectations`). Each comparison attaches the
-rows it read as evidence.
+and policy observed rather than asserted (`framework.pipeline.expectations`). Each
+comparison attaches the rows it read as evidence.
 **Example:** `example/suite/tests/verification/`.
 
 ### Step 12. API tests and docs coverage
@@ -349,11 +351,12 @@ docs-coverage check against the same index.
 
 ### Step 13. Show that every test can fail
 
-For each test, a switch in the product that injects the defect it guards, and a bug
-matrix naming the test, the check that must fail, and any other test the defect is
-known to affect, with the reason. A checker compares each run with the matrix and
-reports any other failure as a separate defect. CI runs the clean product (must pass)
-and every switch (each must fail at its guard).
+For each test that guards a behaviour, a switch in the product that injects the defect,
+and a bug matrix naming the test, the check that must fail, and any other test the
+defect is known to affect, with the reason. A test with no switch of its own, like the
+dashboard deltas, fails under the switches that list it. A checker compares each run
+with the matrix and reports any other failure as a separate defect. CI runs the clean
+product (must pass) and every switch (each must fail at its guard).
 **Example:** `example/app/bugs.py`, `example/suite/bug_matrix.py`,
 `scripts/check_flag_run.py`, `.github/workflows/ci.yml`.
 

@@ -12,8 +12,8 @@
 End-to-end tests for a SaaS product, with a runnable example app. Besides driving the
 UI, the suite checks each result somewhere else: every recipient's own copy in an
 inbox, the billing journal against what the run charged, and the reports, API and
-dashboard against each other and the run. Every test has a defect switch in the example
-app that makes it fail at its check.
+dashboard against each other and the run. Each test that guards a behaviour has a
+defect switch in the example app that makes it fail at its check.
 
 ![The UI tests running against the example app](docs/images/ui-tests.gif)
 
