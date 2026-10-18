@@ -13,6 +13,7 @@ venv/
 reports/
 site/
 test-results/
+demo_videos/
 *.har
 *-trace.zip
 

@@ -70,7 +70,7 @@ services:
       E2E_LATEST_PAGE: /srv/reports/latest.html
       E2E_ENVIRONMENT: "docker compose, bugs: ${DEMO_ESP_BUGS:-none}"
       E2E_HEADLESS: ${E2E_HEADLESS:-0}
-      E2E_SLOWMO_MS: ${E2E_SLOWMO_MS:-300}
+      E2E_SLOWMO_MS: ${E2E_SLOWMO_MS:-500}
       E2E_SHOW_REPORT_S: ${E2E_SHOW_REPORT_S:-30}
       # Sized to this app; a real product needs longer.
       E2E_MAIL_BUDGET_S: ${E2E_MAIL_BUDGET_S:-20}
