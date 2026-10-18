@@ -17,6 +17,7 @@ jobs:
 
   framework:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       mailpit:
         image: axllent/mailpit
@@ -36,6 +37,7 @@ jobs:
   example-clean:
     needs: framework
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       E2E_HEADLESS: "1"
     steps:
@@ -60,16 +62,23 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       list: ${{ steps.matrix.outputs.list }}
+      red: ${{ steps.matrix.outputs.red }}
     steps:
       - uses: actions/checkout@v7
       - id: matrix
-        run: >-
-          echo "list=$(python -c 'import json, example.suite.bug_matrix as m;
-          print(json.dumps(sorted(m.GUARDS)))')" >> "$GITHUB_OUTPUT"
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import example.suite.bug_matrix as m
+          assert m.SITE_RED in m.GUARDS, f"SITE_RED {m.SITE_RED} is not a flag"
+          print("list=" + json.dumps(sorted(m.GUARDS)))
+          print("red=" + m.SITE_RED)
+          PY
 
   example-bug:
     needs: [example-clean, flags]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -105,7 +114,7 @@ jobs:
 
   # Needs Settings > Pages > Source: GitHub Actions.
   pages:
-    needs: [example-clean, example-bug]
+    needs: [example-clean, example-bug, flags]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -127,9 +136,11 @@ jobs:
           path: reports
       - uses: actions/download-artifact@v8
         with:
-          name: report-suppression_leak
+          name: report-${{ needs.flags.outputs.red }}
           path: reports
-      - run: python scripts/build_site.py --reports reports --red suppression_leak --out site
+      - run: >-
+          python scripts/build_site.py --reports reports
+          --red "${{ needs.flags.outputs.red }}" --out site
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site

@@ -53,6 +53,9 @@ GUARDS = {
                                             "the unsubscribed contact got nothing"),
 }
 
+# The flag whose red run the published site shows beside the clean one.
+SITE_RED = "suppression_leak"
+
 NOT_GUARDED = {
     "test_baseline_readings": "reads the surfaces before the run acts; guards nothing alone",
     "test_dashboard_deltas": "proven red as the declared impact of every billing defect "
