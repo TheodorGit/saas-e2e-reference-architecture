@@ -15,16 +15,23 @@ def test_every_write_is_persisted_with_utc_time(tmp_path):
     assert on_disk["entries"][0]["at"].endswith("+00:00")
 
 
-def test_update_find_and_totals(tmp_path):
+def test_an_entry_is_updated_by_name_and_an_unknown_name_raises(tmp_path):
     ledger = Ledger(tmp_path / "l.json")
     ledger.record("send", "delivery", cost=3, name="a")
-    ledger.record("clean", "validation", cost=5, name="b")
     ledger.update("a", opened=["x@example.com"])
-    assert ledger.find(kind="delivery")[0]["opened"] == ["x@example.com"]
-    assert ledger.total_cost() == 8
-    assert ledger.total_cost(kinds={"validation"}) == 5
+    assert ledger.entries[0]["opened"] == ["x@example.com"]
     with pytest.raises(KeyError):
         ledger.update("missing", x=1)
+
+
+def test_two_kinds_can_hold_the_same_id(tmp_path):
+    ledger = Ledger(tmp_path / "l.json")
+    ledger.register_entity("contact", "7", "a contact")
+    ledger.register_entity("suppression", "7", "a suppression list")
+    assert [(e["kind"], e["name"]) for e in ledger.entities] == [
+        ("contact", "a contact"), ("suppression", "a suppression list")]
+    ledger.mark_removed("contact", "7")
+    assert [e["kind"] for e in ledger.cleanup_targets()] == ["suppression"]
 
 
 def test_a_baseline_is_taken_once(tmp_path):
@@ -38,7 +45,7 @@ def test_preserved_or_removed_entities_are_not_cleanup_targets(tmp_path):
     ledger.register_entity("draft", "1", "a")
     ledger.register_entity("draft", "2", "b", preserve=True)
     ledger.register_entity("draft", "3", "c")
-    ledger.mark_removed("3")
+    ledger.mark_removed("draft", "3")
     assert [e["id"] for e in ledger.cleanup_targets()] == ["1"]
     ledger.preserve_all()
     assert ledger.cleanup_targets() == []

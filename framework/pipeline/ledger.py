@@ -16,8 +16,8 @@ class Ledger:
         self.entities: list[dict] = []
         self.snapshots: dict = {}
 
-    def record(self, action: str, kind: str, cost: int = 0, planned: int = None,
-               name: str = None, token: str = None, **extra) -> dict:
+    def record(self, action: str, kind: str, cost: int = 0, planned: int | None = None,
+               name: str | None = None, token: str | None = None, **extra) -> dict:
         entry = {"action": action, "kind": kind, "cost": cost, "planned": planned,
                  "name": name, "token": token, "at": utc_now(), **extra}
         self.entries.append(entry)
@@ -32,18 +32,10 @@ class Ledger:
                 return entry
         raise KeyError(f"no ledger entry named {name!r}")
 
-    def find(self, **match) -> list[dict]:
-        return [e for e in self.entries
-                if all(e.get(k) == v for k, v in match.items())]
-
-    def total_cost(self, kinds=None) -> int:
-        return sum(e.get("cost") or 0 for e in self.entries
-                   if kinds is None or e.get("kind") in kinds)
-
     def register_entity(self, kind: str, uid: str, name: str,
                         preserve: bool = False) -> dict:
         for entity in self.entities:
-            if entity["id"] == uid:
+            if (entity["kind"], entity["id"]) == (kind, uid):
                 entity["preserve"] = preserve
                 self.save()
                 return entity
@@ -52,9 +44,9 @@ class Ledger:
         self.save()
         return entity
 
-    def mark_removed(self, uid: str):
+    def mark_removed(self, kind: str, uid: str):
         for entity in self.entities:
-            if entity["id"] == uid:
+            if (entity["kind"], entity["id"]) == (kind, uid):
                 entity["removed"] = True
         self.save()
 
