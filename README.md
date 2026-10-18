@@ -42,7 +42,7 @@ defect switch in the example app that makes it fail at its check.
 ## What a report looks like
 
 Every run mails its report. The email lists the verdict and the failures; the full
-report is attached as an HTML file, with every test, every step, a video of every
+report is attached as an HTML file, with every test, every check, a video of every
 browser test and the evidence of each failed check. Both sample reports are online:
 [green](https://TheodorGit.github.io/saas-e2e-reference-architecture/green/report.html) and
 [red](https://TheodorGit.github.io/saas-e2e-reference-architecture/red/report.html).
@@ -76,6 +76,17 @@ received. The leak also shows in billing, the dashboard and the report:
 This architecture is based on an end-to-end suite I built for a production platform, an
 email-marketing SaaS. It is a clean-room re-implementation: the example app is
 fictional, and no internal data, code or product details from the original are included.
+
+## This repo and its sibling
+
+Two repos, two jobs. This one is the pattern catalogue: its defects are switches in its
+own example app, so every test can be shown red on demand, and what it documents is the
+pattern that catches each class of defect - the case studies and the bug matrix.
+[playwright-test-framework](https://github.com/TheodorGit/playwright-test-framework) is
+where defect reporting lives: real defects in public builds, each written up with a
+`DEF-NN` id, a severity and the check that pins it. One shows how a suite is built to
+find a defect in the first place, the other how one is written up for a developer. The
+reporting framework there is a scaled-down port of this one.
 
 ## For technical teams
 

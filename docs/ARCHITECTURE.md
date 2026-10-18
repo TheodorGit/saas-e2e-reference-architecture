@@ -41,7 +41,7 @@ the report and the checks.
 `e2e_ledger`.
 
 ### 3. The run manifest lists the tests
-**Problem.** A report built from step files leaves out a test that failed in a fixture,
+**Problem.** A report built from check files leaves out a test that failed in a fixture,
 because it never wrote one.
 **Pattern.** Every phase of every test is recorded in a manifest, rewritten after each
 phase. A test that was still running when the process died is reported as interrupted.
@@ -58,19 +58,19 @@ pytest header says when a run is a replay.
 
 ## Reporting
 
-### 5. Steps that declare what they expect
+### 5. Checks that declare what they expect
 **Problem.** A bare assert fails with an error line and nothing else.
-**Pattern.** A step states its expectation before it runs. On failure the report shows
+**Pattern.** A check states its expectation before it runs. On failure the report shows
 EXPECTED (the stated expectation), INSTEAD (the exception's first line) and MEANS (a
 sentence written by the test, or one derived from the exception type, or nothing).
-**Where.** `framework/reporting/recorder.py`, `failure_reasons.py`, fixture `steps`.
+**Where.** `framework/reporting/recorder.py`, `failure_reasons.py`, fixture `checks`.
 
-### 6. Soft steps and checks that did not run
+### 6. Soft checks, and checks that did not run
 **Problem.** One failed check stops the test and hides the checks after it, and a check
 that never ran looks like one that passed.
-**Pattern.** `soft_step` records a failure and continues; the test fails once at the
-end, listing all of them. If the test does not raise them, the `steps` fixture does in
-teardown (pattern 18). `skip_step` records a check that did not run, and why; it is
+**Pattern.** `soft_check` records a failure and continues; the test fails once at the
+end, listing all of them. If the test does not raise them, the `checks` fixture does in
+teardown (pattern 18). `skip_check` records a check that did not run, and why; it is
 shown as not run and does not count as passed. `known_issue` records an accepted defect
 as amber.
 **Where.** `framework/reporting/recorder.py`.
@@ -79,8 +79,8 @@ as amber.
 **Problem.** A report that only arrives when a run passes is not useful.
 **Pattern.** At the end of the session the builder writes `report.html`, `email.html`
 and `summary.json`, and mails them over plain SMTP, not through the system under test.
-Building or mailing the report never changes the run's result. Steps are matched to
-tests by nodeid; steps for a test missing from the manifest are reported as a warning.
+Building or mailing the report never changes the run's result. Checks are matched to
+tests by nodeid; checks for a test missing from the manifest are reported as a warning.
 **Where.** `framework/reporting/report_builder.py`, `mailer.py`, `profiles.py`.
 
 ## Delivery
@@ -129,7 +129,8 @@ amber; when the defect is fixed the allowance drops to zero without a test chang
 overcount is never allowed.
 **Where.** `framework/pipeline/totals.py`. In the example, the journal, the dashboard
 and the report each have their own verification test
-(`example/suite/tests/verification/`).
+(`example/suite/tests/verification/`); none allows an undercount, because the example's
+defects are flag-driven and guarded rather than accepted.
 
 ### 13. Set differences and partitions
 **Problem.** A matching count can hide a missing recipient and an unexpected one.
@@ -187,23 +188,23 @@ check with its number and result. The report links each check to its files. A pa
 test keeps no evidence. Every browser test also keeps a video, and the example's runner
 shows the browser live unless it runs headless.
 **Where.** `Ledger.preserve_all` (called by the plugin on any failure),
-`StepRecorder.attach` and `framework/reporting/evidence.py`, `framework/ui/tracing.py`
+`CheckRecorder.attach` and `framework/reporting/evidence.py`, `framework/ui/tracing.py`
 (screens, traces and videos), `example/suite/entrypoint.sh` (the live view).
 
 ## API
 
-### 18. A test cannot pass while holding a failed step
+### 18. A test cannot pass while holding a failed check
 **Problem.** API tests make many independent checks, so they record failures and
 continue. A test that forgets to raise them at the end, or returns early, passes with a
 failure in it.
-**Pattern.** Every call is a step that states the expected method, route and status
-and records the answer; checks on the body are steps too. The `steps` fixture raises
+**Pattern.** Every call is a check that states the expected method, route and status
+and records the answer; checks on the body are checks too. The `checks` fixture raises
 any recorded failure in teardown, for API and UI tests alike. A request that could not
-be sent is a failed step.
-**Where.** `framework/api/recorder.py`, fixtures `api_recorder` and `steps`.
-`framework/tests/test_api.py` shows the difference: without the teardown raise, a toy
-run reports "[PASSED] all 2 tests passed - 1 of 2 checks passed"; with it, those tests
-fail. In the example: `example/suite/tests/api/`.
+be sent is a failed check.
+**Where.** `framework/api/recorder.py`, fixtures `api_recorder` and `checks`.
+`framework/tests/test_api.py` shows the difference: without the teardown raise, those
+tests pass while holding a failed check; with it, they fail. In the example:
+`example/suite/tests/api/`.
 
 ### 19. Docs coverage
 **Problem.** A documented endpoint that no test calls goes untested, usually when it is
@@ -311,7 +312,7 @@ fixture in `example/suite/conftest.py`.
 ### Step 8. Baseline
 
 Before anything acts, read every surface verification will compare against and
-`snapshot` it into the ledger. Each step says what it found (`found=`), e.g. "Newest row
+`snapshot` it into the ledger. Each check says what it found (`found=`), e.g. "Newest row
 is #413".
 **Example:** `example/suite/tests/baseline/test_baseline.py`.
 

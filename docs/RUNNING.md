@@ -114,7 +114,8 @@ and time plus a short random part, e.g. `1002_1514ab12-suppression_leak`.
 | `summary.json` | Verdict and counts |
 | `manifest.json` | Which tests ran and how each ended |
 | `ledger.json` | What the run did, spent and created |
-| `steps__*.json` | Every recorded step, per test |
+| `selection.json` | What the run was asked to run, and what pytest deselected |
+| `checks__*.json` | Every recorded check, per test |
 | `videos/` | A video of every browser test |
 | `evidence/<test>/` | What each failed check saw, named `NN <what it is>.ext` by check number (e.g. `06 the email they received.html`). A failed screen check adds `NN screen.png` and `00 trace.zip` (open with `playwright show-trace`) |
 | `evidence/<test>/test.txt` | The test and every check, with its number and result |
