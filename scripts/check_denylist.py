@@ -4,6 +4,7 @@
     python scripts/check_denylist.py --all
 
 The denylist lives outside the repo: E2E_DENYLIST, or ~/.saas-e2e-denylist.txt.
+--all covers tracked files only; a pre-commit run is handed the staged ones.
 """
 import os
 import re
@@ -43,8 +44,8 @@ def read_text(path: Path):
     return data.decode("utf-8", errors="replace")
 
 
-def scan(files: list[str], patterns) -> list[str]:
-    hits = []
+def scan(files: list[str], patterns) -> tuple[list[str], list[str]]:
+    hits, skipped = [], []
     for name in files:
         path = Path(name)
         if path.resolve() == SELF:
@@ -55,12 +56,13 @@ def scan(files: list[str], patterns) -> list[str]:
                 hits.append(f"{name}: path matches denylist line {number}")
         text = read_text(path)
         if text is None:
+            skipped.append(name)
             continue
         for line_no, line in enumerate(text.splitlines(), 1):
             for number, pattern in patterns:
                 if pattern.search(line):
                     hits.append(f"{name}:{line_no}: matches denylist line {number}")
-    return hits
+    return hits, skipped
 
 
 def main(argv: list[str]) -> int:
@@ -75,13 +77,16 @@ def main(argv: list[str]) -> int:
         return 1
 
     files = tracked_files() if argv == ["--all"] else argv
-    hits = scan(files, patterns)
+    hits, skipped = scan(files, patterns)
     if hits:
         print("Denylisted content found - remove it before committing:")
         for hit in hits:
             print(f"  {hit}")
         return 1
-    print(f"denylist: {len(files)} file(s) clean against {len(patterns)} pattern(s)")
+    if skipped:
+        print(f"denylist: no text to scan, so unchecked: {', '.join(skipped)}")
+    print(f"denylist: {len(files) - len(skipped)} file(s) clean against "
+          f"{len(patterns)} pattern(s)")
     return 0
 
 
