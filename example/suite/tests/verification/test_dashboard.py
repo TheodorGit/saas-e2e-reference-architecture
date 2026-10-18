@@ -4,7 +4,7 @@ import pytest
 from example.suite import evidence
 from example.suite import ledger_kinds as kinds
 from example.suite.pages.dashboard import DashboardPage
-from framework.polling import poll_until
+from framework.polling import poll_until_stable
 
 pytestmark = pytest.mark.pipeline
 
@@ -24,8 +24,8 @@ def test_dashboard_deltas(app_page, e2e_ledger, baseline, config, checks):
     def read():
         dashboard.refresh()
         return dashboard.values()
-    now, waited = poll_until(read, lambda v: v["credits"] - before["credits"] ==
-                             expected["credits"], config.ingest_budget_s, 3)
+    # Waiting for the figure the run expects stops on it while billing is still landing.
+    now, waited = poll_until_stable(read, config.ingest_budget_s, config.ingest_settle_s)
 
     for key, want in expected.items():
         checks.soft_check(f"{key} delta",

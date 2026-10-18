@@ -5,7 +5,7 @@ from example.suite import evidence
 from example.suite import ledger_kinds as kinds
 from example.suite.pages.report import ReportPage
 from framework.pipeline.sets import assert_partition, assert_same
-from framework.polling import poll_until
+from framework.polling import poll_until_stable
 
 pytestmark = pytest.mark.pipeline
 
@@ -26,11 +26,9 @@ def test_report_cards_list_and_api_agree(app_page, public_api, e2e_ledger, confi
         name = entry["name"]
         want = {card: sorted(entry.get(field) or []) for card, (_, _, field) in SURFACES.items()}
 
-        def matches(report, want=want):
-            return all(sorted(report[listed]) == want[card]
-                       for card, (_, listed, _) in SURFACES.items())
-        api, waited = poll_until(lambda entry=entry: public_api.report(entry["batch_id"]),
-                                 matches, config.ingest_budget_s, 2)
+        # A recipient the run does not expect is the defect, so wait for the report to hold.
+        api, waited = poll_until_stable(lambda entry=entry: _report(public_api, entry),
+                                        config.ingest_budget_s, config.ingest_settle_s)
 
         def seen(check, api=api, entry=entry):
             def run():
@@ -76,6 +74,12 @@ def test_report_cards_list_and_api_agree(app_page, public_api, e2e_ledger, confi
                               expected="the drill-down names exactly who the run engaged",
                               ui=True)
     checks.raise_soft_failures()
+
+
+def _report(public_api, entry: dict) -> dict:
+    report = public_api.report(entry["batch_id"])
+    listed = {field: sorted(report[field]) for _, (_, field, _) in SURFACES.items()}
+    return {**report, **listed}
 
 
 def _equal(got, want, what: str):

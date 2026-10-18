@@ -20,6 +20,7 @@ class SuiteConfig:
     audience_cap: int
     mail_budget_s: int
     ingest_budget_s: int
+    ingest_settle_s: int
     max_window_wait_s: int
     ui_timeout_ms: int
 
@@ -47,6 +48,7 @@ def load() -> SuiteConfig:
         audience_cap=_int("E2E_AUDIENCE_CAP", 10),
         mail_budget_s=_int("E2E_MAIL_BUDGET_S", 60),
         ingest_budget_s=_int("E2E_INGEST_BUDGET_S", 60),
+        ingest_settle_s=_int("E2E_INGEST_SETTLE_S", 8),
         max_window_wait_s=_int("E2E_MAX_WINDOW_WAIT_S", 90),
         ui_timeout_ms=_int("E2E_UI_TIMEOUT_MS", 15_000),
     )

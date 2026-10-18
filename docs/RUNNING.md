@@ -28,8 +28,8 @@ takes a few minutes. Docker caches it, so later runs skip it. Before a demo, run
 
 | Run | Time |
 |---|---|
-| Clean, with the live view (the default) | about 2.5 minutes |
-| Clean, headless | about 60 s |
+| Clean, with the live view (the default) | about 3 minutes |
+| Clean, headless | about 75 s |
 | A defect switched on, headless | 1 to 2 minutes |
 
 A red run is slower because some checks wait for something that never arrives, until
@@ -50,10 +50,16 @@ Set these in the shell before `docker compose up`.
 | `E2E_SHOW_REPORT_S` | 30 | How long a watched run shows the report email and the report; 0 skips it |
 | `E2E_MAIL_BUDGET_S` | 20 | How long the suite waits for an email |
 | `E2E_INGEST_BUDGET_S` | 20 | How long the suite waits for stats and billing |
+| `E2E_INGEST_SETTLE_S` | 8 | How long stats and billing must hold still before the suite reads them |
 
 The two budgets suit the demo app. The suite's own default for a real product is 60 s
 each (`example/suite/config.py`, which also has `E2E_MAX_WINDOW_WAIT_S` and
 `E2E_AUDIENCE_CAP`).
+
+`E2E_INGEST_SETTLE_S` must outlast `DEMO_ESP_INGEST_DELAY_S` plus one
+`DEMO_ESP_WORKER_TICK_S`, the longest a charge already made can take to appear. Below
+that, a verification can read a figure that is still arriving and find the number the
+run expected on its way past.
 
 ## Checking a run against the bug matrix
 

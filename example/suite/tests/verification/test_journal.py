@@ -6,7 +6,7 @@ import pytest
 from example.suite import evidence
 from example.suite import ledger_kinds as kinds
 from framework.pipeline.sets import assert_disjoint, assert_same
-from framework.polling import poll_until
+from framework.polling import poll_until_stable
 
 pytestmark = pytest.mark.pipeline
 
@@ -18,9 +18,10 @@ def test_billing_journal_reconciles(public_api, e2e_ledger, baseline, config, ch
     if not billable:
         pytest.skip("no billable action to reconcile")
 
-    journal, waited = poll_until(
+    # The row that proves a defect is the one nobody expected, so wait for all of them.
+    journal, waited = poll_until_stable(
         lambda: public_api.journal_since(baseline["journal_max_id"]),
-        lambda rs: set(charged) <= {r["reference"] for r in rs}, config.ingest_budget_s, 2)
+        config.ingest_budget_s, config.ingest_settle_s)
     read = {"journal rows since the baseline": journal,
             "billed actions the run recorded": charged, "free validations": free}
 

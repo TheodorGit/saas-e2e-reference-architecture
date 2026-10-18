@@ -1,7 +1,7 @@
 import pytest
 
 from framework.pipeline.totals import shortfall, tally
-from framework.polling import poll_until
+from framework.polling import poll_until, poll_until_stable
 
 pytestmark = pytest.mark.unit
 
@@ -54,3 +54,25 @@ def test_polling_gives_up_at_the_budget_with_the_last_value():
     value, waited = poll_until(lambda: "not yet", lambda v: False, 12, 5,
                                clock=clock, sleep=clock.sleep)
     assert value == "not yet" and waited == 12
+
+
+def test_a_reading_still_arriving_is_not_taken_for_a_settled_one():
+    # 15 is what the run recorded; the app charged 20 and the dashboard is still climbing.
+    clock, reads = FakeClock(), iter([15, 20, 20])
+    value, waited = poll_until_stable(lambda: next(reads), 60, 8,
+                                      clock=clock, sleep=clock.sleep)
+    assert value == 20 and waited == 16
+
+
+def test_a_settled_reading_is_taken_as_soon_as_it_holds():
+    clock, reads = FakeClock(), iter([20, 20])
+    value, waited = poll_until_stable(lambda: next(reads), 60, 8,
+                                      clock=clock, sleep=clock.sleep)
+    assert value == 20 and waited == 8
+
+
+def test_a_reading_that_never_settles_gives_up_at_the_budget():
+    clock, reads = FakeClock(), iter([1, 2, 3, 4])
+    value, waited = poll_until_stable(lambda: next(reads), 12, 5,
+                                      clock=clock, sleep=clock.sleep)
+    assert value == 4 and waited == 12

@@ -59,7 +59,6 @@ LIFT_THE_FAILURE = """(marker) => {
 
 
 def shoot_cover(page, target: Path, marker: str):
-    # The cover is the verdict with the failure right under it, the rest folded away.
     page.set_viewport_size({"width": COVER[0], "height": COVER[1]})
     page.evaluate(LIFT_THE_FAILURE, marker)
     target.parent.mkdir(parents=True, exist_ok=True)
