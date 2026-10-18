@@ -7,10 +7,10 @@ account, key or `.env` file is needed.
 ## The live view
 
 The browser runs headed on a virtual screen in the test runner, slowed down by
-`E2E_SLOWMO_MS` (default 300 ms per action). The screen is served at
-<http://localhost:7900>, view-only. Until the browser tests start, that address shows a
-waiting page (`example/suite/live/`). If the live view cannot start, the run continues
-headless and says so. `E2E_HEADLESS=1` turns it off; CI does.
+`E2E_SLOWMO_MS` (default 1500 ms per action, a pace a person can follow). The screen is
+served at <http://localhost:7900>, view-only. Until the browser tests start, that
+address shows a waiting page (`example/suite/live/`). If the live view cannot start, the
+run continues headless and says so. `E2E_HEADLESS=1` turns it off; CI does.
 
 After the last test, the live view shows the report email, then the full report, each
 for `E2E_SHOW_REPORT_S` seconds (default 30; 0 skips it). This is
@@ -28,7 +28,7 @@ takes a few minutes. Docker caches it, so later runs skip it. Before a demo, run
 
 | Run | Time |
 |---|---|
-| Clean, with the live view (the default) | about 90 s |
+| Clean, with the live view (the default) | about 2.5 minutes |
 | Clean, headless | about 60 s |
 | A defect switched on, headless | 1 to 2 minutes |
 
@@ -46,7 +46,7 @@ Set these in the shell before `docker compose up`.
 | `DEMO_ESP_UI_LATENCY_MS` | 300 | Simulated latency on the app's read endpoints |
 | `DEMO_ESP_BUGS` | (none) | Defects to switch on, comma-separated; an unknown name stops the app |
 | `E2E_HEADLESS` | 0 | `1` runs the browser headless, without the live view |
-| `E2E_SLOWMO_MS` | 300 | Delay per browser action in the live view |
+| `E2E_SLOWMO_MS` | 1500 | Delay per browser action in the live view |
 | `E2E_SHOW_REPORT_S` | 30 | How long a watched run shows the report email and the report; 0 skips it |
 | `E2E_MAIL_BUDGET_S` | 20 | How long the suite waits for an email |
 | `E2E_INGEST_BUDGET_S` | 20 | How long the suite waits for stats and billing |
