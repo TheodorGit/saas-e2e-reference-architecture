@@ -8,7 +8,7 @@ from pathlib import Path
 _RUN_ID = None
 
 
-def new_run_id(now: datetime = None) -> str:
+def new_run_id(now: datetime | None = None) -> str:
     return f"{(now or datetime.now()):%m%d_%H%M}{uuid.uuid4().hex[:4]}"
 
 

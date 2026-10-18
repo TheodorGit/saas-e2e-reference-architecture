@@ -68,7 +68,7 @@ def fire(url: str, timeout: float = 15) -> dict:
 
 
 def engage(inbox: MailClient, copies: dict[str, Message], patterns: TrackerPatterns,
-           open_mail: bool = True, click_text: str = None) -> dict:
+           open_mail: bool = True, click_text: str | None = None) -> dict:
     """Opens and clicks each recipient's own copy; returns who was engaged."""
     opened, clicked, failures = [], [], []
     for address, message in sorted(copies.items()):

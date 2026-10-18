@@ -26,7 +26,7 @@ def inbox():
     return MailpitClient(URL)
 
 
-def send(subject: str, to: list[str], html: str, headers: dict = None):
+def send(subject: str, to: list[str], html: str, headers: dict | None = None):
     message = EmailMessage()
     message["From"] = "sender@example.com"
     message["To"] = ", ".join(to)

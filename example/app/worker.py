@@ -64,7 +64,7 @@ def send_due() -> int:
     return sent
 
 
-def _finish_run(run_id: int, status: str, reason: str = None, sent_at: str = None):
+def _finish_run(run_id: int, status: str, reason: str | None = None, sent_at: str | None = None):
     with db.tx() as conn:
         conn.execute("UPDATE automation_runs SET status = ?, reason = ?, sent_at = ? "
                      "WHERE id = ?", (status, reason, sent_at, run_id))
@@ -140,7 +140,7 @@ def tick():
     ingest()
 
 
-def run_forever(stop: threading.Event = None):
+def run_forever(stop: threading.Event | None = None):
     stop = stop or threading.Event()
     db.init()
     print(f"[worker] ingest delay {SETTINGS.ingest_delay_s}s, tick {SETTINGS.worker_tick_s}s",

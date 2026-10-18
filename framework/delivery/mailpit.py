@@ -23,7 +23,7 @@ class MailpitClient(MailClient):
         response.raise_for_status()
         return response.json()
 
-    def search(self, subject: str = None, to: str = None) -> list[Message]:
+    def search(self, subject: str | None = None, to: str | None = None) -> list[Message]:
         terms = []
         if subject:
             terms.append(f"subject:{_quote(subject)}")

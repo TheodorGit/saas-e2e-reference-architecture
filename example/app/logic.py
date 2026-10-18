@@ -243,8 +243,8 @@ def _batch(row) -> dict:
 
 
 def create_batch(conn, name: str, subject: str, body_html: str,
-                 audience_tag: str = None, suppression_list_ids=(),
-                 send_at: str = None) -> dict:
+                 audience_tag: str | None = None, suppression_list_ids=(),
+                 send_at: str | None = None) -> dict:
     name, subject = (name or "").strip(), (subject or "").strip()
     if not name or not subject or not (body_html or "").strip():
         raise Invalid("name, subject and message are all required")

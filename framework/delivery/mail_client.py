@@ -18,7 +18,7 @@ class Message:
 
 class MailClient(ABC):
     @abstractmethod
-    def search(self, subject: str = None, to: str = None) -> list[Message]:
+    def search(self, subject: str | None = None, to: str | None = None) -> list[Message]:
         ...
 
     @abstractmethod
@@ -37,7 +37,7 @@ class MailClient(ABC):
     def delete(self, message_ids: list[str]) -> int:
         ...
 
-    def wait_for(self, subject: str = None, to: str = None, timeout_s: float = 300,
+    def wait_for(self, subject: str | None = None, to: str | None = None, timeout_s: float = 300,
                  poll_s: float = 5, exclude: tuple = ()) -> Message | None:
         def fresh():
             return [m for m in self.search(subject=subject, to=to) if m.id not in exclude]
@@ -60,5 +60,5 @@ class MailClient(ABC):
         copies, _ = poll_until(collect, lambda c: set(c) >= wanted, timeout_s, poll_s)
         return copies
 
-    def delete_matching(self, subject: str = None, to: str = None) -> int:
+    def delete_matching(self, subject: str | None = None, to: str | None = None) -> int:
         return self.delete([m.id for m in self.search(subject=subject, to=to)])
