@@ -2,7 +2,7 @@
 # The test runner's entry point.
 set -u
 VIEW_PORT="${E2E_VIEW_PORT:-7900}"
-SLOWMO_MS="${E2E_SLOWMO_MS:-500}"
+SLOWMO_MS="${E2E_SLOWMO_MS:-1500}"
 # Arguments replace the default target, so one flow can be run on its own.
 PYTEST_ARGS=("${@:-example/suite}" -p no:cacheprovider)
 
