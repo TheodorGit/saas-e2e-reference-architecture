@@ -22,11 +22,18 @@ def test_api_contact_lifecycle(v1, config, entity_name, e2e_ledger, record):
              expected="email, names and tags exactly as sent, status subscribed",
              means="The API stores something other than what the client sent.")
     read = v1.call("GET", "/v1/contacts/{contact_id}", contact_id=contact["id"])
+    if read is None or read.status_code != 200:
+        return  # the failed call is recorded; teardown fails the test
     v1.check("read back unchanged", lambda: _same(read.json(), contact),
              expected="the single-contact read equals what creation returned")
     listed = v1.call("GET", "/v1/contacts", params={"tag": token})
-    v1.check("found by its tag", lambda: _emails(listed.json()) == [contact["email"]]
-             or _fail(f"tag filter returned {_emails(listed.json())}"),
+    if listed is None or listed.status_code != 200:
+        return  # the failed call is recorded; teardown fails the test
+
+    def found_by_its_tag():
+        found = _emails(listed.json())
+        return found == [contact["email"]] or _fail(f"tag filter returned {found}")
+    v1.check("found by its tag", found_by_its_tag,
              expected="the tag filter returns exactly this contact")
 
     v1.call("POST", "/v1/contacts", expect=400, name="a duplicate is refused", json=sent)
@@ -35,7 +42,7 @@ def test_api_contact_lifecycle(v1, config, entity_name, e2e_ledger, record):
 
     deleted = v1.call("DELETE", "/v1/contacts/{contact_id}", contact_id=contact["id"])
     if deleted is not None and deleted.status_code == 200:
-        e2e_ledger.mark_removed(contact["id"])
+        e2e_ledger.mark_removed("contact", contact["id"])
         record("contact.delete", kinds.CONTACT, name=f"{token}-delete",
                email=contact["email"], contacts_delta=-1, subscribed_delta=-1)
     v1.call("GET", "/v1/contacts/{contact_id}", expect=404, name="gone after delete",

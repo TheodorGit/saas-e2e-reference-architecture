@@ -1,13 +1,14 @@
-"""API calls and checks as recorded soft steps."""
+"""API calls and their verifications, recorded as soft checks."""
+import os
 from collections.abc import Callable
 from dataclasses import dataclass
 
 import requests
 
-from framework.reporting.recorder import StepRecorder
+from framework.reporting.recorder import CheckRecorder
 
 BODY_SHOWN = 200
-TIMEOUT = 30
+TIMEOUT = int(os.getenv("E2E_HTTP_TIMEOUT_S", "30"))
 
 
 @dataclass(frozen=True)
@@ -32,48 +33,50 @@ class Coverage:
 
 
 class ApiRecorder:
-    def __init__(self, http: requests.Session, base_url: str, steps: StepRecorder,
+    def __init__(self, http: requests.Session, base_url: str, checks: CheckRecorder,
                  coverage: Coverage, nodeid: str, label: str = ""):
         self.http = http
         self.base = base_url.rstrip("/")
-        self.steps = steps
+        self.checks = checks
         self.coverage = coverage
         self.nodeid = nodeid
         self.label = label
         self.last = None
 
-    def call(self, method: str, template: str, expect: int = 200, name: str = None,
-             params: dict = None, json=None, **path) -> requests.Response | None:
+    def call(self, method: str, template: str, expect: int = 200, name: str | None = None,
+             params: dict | None = None, json=None, **path) -> requests.Response | None:
         method = method.upper()
         url = self.base + template.format(**path)
-        step = name or f"{self.label}{method} {template}"
+        check = name or f"{self.label}{method} {template}"
         try:
             response = self.http.request(method, url, params=params, json=json,
                                          timeout=TIMEOUT)
         except requests.RequestException as exc:
             self.coverage.add(Call(method, template, url, None, expect, self.nodeid))
-            self.steps.soft_step(step, lambda error=exc: _raise(error),
-                                 expected=f"{method} {template} answers {expect}")
+            self.checks.soft_check(check, lambda error=exc: _raise(error),
+                                   expected=f"{method} {template} answers {expect}")
             return None
         self.coverage.add(Call(method, template, url, response.status_code, expect,
                                self.nodeid))
         self.last = response
 
         def verify():
-            self.steps.attach("request and response", exchange(response))
+            self.checks.attach("request and response", exchange(response))
             assert response.status_code == expect, (
                 f"{method} {url} answered {response.status_code}, expected {expect}: "
                 f"{response.text[:BODY_SHOWN]}")
             return response.status_code
-        self.steps.soft_step(step, verify, expected=f"{method} {template} answers {expect}")
+        self.checks.soft_check(check, verify, expected=f"{method} {template} answers {expect}")
         return response
 
-    def check(self, name: str, fn: Callable, expected: str, means: str = None):
+    def check(self, name: str, fn: Callable, expected: str, means: str | None = None):
+        subject = self.last
+
         def checked():
-            if self.last is not None:
-                self.steps.attach("the response it checked", exchange(self.last))
+            if subject is not None:
+                self.checks.attach("the response it checked", exchange(subject))
             return fn()
-        return self.steps.soft_step(name, checked, expected=expected, means=means)
+        return self.checks.soft_check(name, checked, expected=expected, means=means)
 
 
 def exchange(response) -> str:

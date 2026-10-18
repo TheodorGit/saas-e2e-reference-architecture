@@ -11,7 +11,7 @@ from framework.polling import poll_until
 pytestmark = pytest.mark.pipeline
 
 
-def test_billing_journal_reconciles(public_api, e2e_ledger, baseline, config, steps):
+def test_billing_journal_reconciles(public_api, e2e_ledger, baseline, config, checks):
     billable = [e for e in e2e_ledger.entries if e["kind"] in kinds.BILLABLE]
     charged = {e["reference"]: e["cost"] for e in billable if e["cost"]}
     free = [e["reference"] for e in billable if not e["cost"]]
@@ -26,7 +26,7 @@ def test_billing_journal_reconciles(public_api, e2e_ledger, baseline, config, st
 
     def seen(check):
         def run():
-            evidence.data(steps, "the journal rows and the run's record", read)
+            evidence.data(checks, "the journal rows and the run's record", read)
             return check()
         return run
     amounts, counts = defaultdict(int), Counter()
@@ -34,40 +34,40 @@ def test_billing_journal_reconciles(public_api, e2e_ledger, baseline, config, st
         amounts[row["reference"]] += row["credits"]
         counts[row["reference"]] += 1
 
-    steps.soft_step("every billed action has a row, and no row is unexplained",
-                    seen(lambda: assert_same(charged, amounts, f"journal references "
-                                             f"({waited:.0f}s allowed to land)")),
-                    expected=f"exactly the run's {len(charged)} billed actions",
-                    means="Billing does not match what the run did.")
+    checks.soft_check("every billed action has a row, and no row is unexplained",
+                      seen(lambda: assert_same(charged, amounts, f"journal references "
+                                               f"({waited:.0f}s allowed to land)")),
+                      expected=f"exactly the run's {len(charged)} billed actions",
+                      means="Billing does not match what the run did.")
 
     def one_row_each():
         repeated = {ref: n for ref, n in counts.items() if n > 1}
         assert not repeated, f"billed more than once: {repeated}"
-    steps.soft_step("one row per billable action", seen(one_row_each),
-                    expected="no action appears twice in the journal",
-                    means="An action was billed more than once.")
+    checks.soft_check("one row per billable action", seen(one_row_each),
+                      expected="no action appears twice in the journal",
+                      means="An action was billed more than once.")
 
     def exact_amounts():
         wrong = {ref: (cost, amounts.get(ref, 0)) for ref, cost in charged.items()
                  if amounts.get(ref, 0) != cost}
         assert not wrong, f"(expected, charged) differ: {wrong}"
-    steps.soft_step("each row charges exactly the recorded cost", seen(exact_amounts),
-                    expected="journal credits equal the ledger's cost, per action")
+    checks.soft_check("each row charges exactly the recorded cost", seen(exact_amounts),
+                      expected="journal credits equal the ledger's cost, per action")
     if free:
-        steps.soft_step("free validations were not billed",
-                        seen(lambda: assert_disjoint(free, amounts,
-                                                     "free validations with a journal row")),
-                        expected=f"{len(free)} validation(s) inside the free window have no row")
+        checks.soft_check("free validations were not billed",
+                          seen(lambda: assert_disjoint(free, amounts,
+                                                       "free validations with a journal row")),
+                          expected=f"{len(free)} validation(s) inside the free window have no row")
     else:
-        steps.skip_step("free validations were not billed",
-                        "this run recorded no validation inside the free window",
-                        expected="validations inside the free window have no row")
+        checks.skip_check("free validations were not billed",
+                          "this run recorded no validation inside the free window",
+                          expected="validations inside the free window have no row")
 
     def totals():
         expected = kinds.spend(billable)
         got = sum(amounts.values())
         assert got == expected["total"], f"journal total {got}, run spent {expected}"
         return got
-    steps.soft_step("the journal total equals the run's spend", seen(totals),
-                    expected="one total, from the same tally the report shows")
-    steps.raise_soft_failures()
+    checks.soft_check("the journal total equals the run's spend", seen(totals),
+                      expected="one total, from the same tally the report shows")
+    checks.raise_soft_failures()

@@ -7,15 +7,19 @@ import pytest
 from framework import tokens
 from framework.api.recorder import ApiRecorder, Coverage
 from framework.pipeline.ledger import Ledger
-from framework.pipeline.manifest import RunManifest
+from framework.pipeline.manifest import RunManifest, record_selection
 from framework.pipeline.replay import header_lines, replay_source
 from framework.pipeline.stages import order_items, parse_stages
 from framework.reporting import evidence, profiles
-from framework.reporting.recorder import StepRecorder
+from framework.reporting.recorder import CheckRecorder
 from framework.safety.guards import DESTRUCTIVE_ENV, destructive_allowed
 
 REPLAY_LEDGER_ENV = "E2E_REPLAY_LEDGER"
 LATEST_PAGE_ENV = "E2E_LATEST_PAGE"
+
+# pytest_deselected is handed the items and nothing else, so there is no config
+# to stash them on.
+_deselected: list = []
 
 _manifest_key = pytest.StashKey[RunManifest]()
 _ledger_key = pytest.StashKey[Ledger]()
@@ -28,9 +32,15 @@ def pytest_addoption(parser):
 
 
 def pytest_configure(config):
+    if hasattr(config, "workerinput"):
+        raise pytest.UsageError(
+            "the staged pipeline is single-process: one ledger, one run id and one report "
+            "for the whole session. Run without -n.")
     config.addinivalue_line(
         "markers", "destructive: changes controlled resources; runs only with "
                    f"{DESTRUCTIVE_ENV}=1")
+    # Module-level, so a second session in the same process must not inherit them.
+    _deselected.clear()
     config.stash[_manifest_key] = RunManifest(tokens.current_run_id(),
                                               os.getenv("E2E_ENVIRONMENT"))
     config.stash[_coverage_key] = Coverage()
@@ -39,6 +49,27 @@ def pytest_configure(config):
 def pytest_report_header(config):
     source = replay_source(REPLAY_LEDGER_ENV)
     return header_lines("LEDGER", source) if source else None
+
+
+def pytest_deselected(items):
+    _deselected.extend(items)
+
+
+def pytest_collection_finish(session):
+    if session.config.option.collectonly:
+        # A collection runs nothing, so it leaves no run directory behind.
+        return
+    selected = len(session.items)
+    if not selected and not _deselected:
+        return
+    record_selection(tokens.run_dir(), selected + len(_deselected), selected,
+                     selection_expression(session.config))
+
+
+def selection_expression(config) -> str:
+    asked = (("-m", getattr(config.option, "markexpr", "")),
+             ("-k", getattr(config.option, "keyword", "")))
+    return " ".join(f'{flag} "{value}"' for flag, value in asked if value)
 
 
 def pytest_collection_modifyitems(config, items):
@@ -102,7 +133,7 @@ def run_id() -> str:
 
 @pytest.fixture
 def subject_token(run_id, request):
-    def make(slug: str = None) -> str:
+    def make(slug: str | None = None) -> str:
         return tokens.subject_token(
             run_id, slug or request.node.originalname.removeprefix("test_")[:24])
     return make
@@ -114,10 +145,10 @@ def entity_name(run_id):
 
 
 @pytest.fixture
-def steps(request):
-    """Fails the test in teardown if it holds a failed soft step."""
+def checks(request):
+    """Fails the test in teardown if it holds a failed soft check."""
     nodeid = request.node.nodeid
-    recorder = StepRecorder(profiles.profile_for(nodeid).key, nodeid)
+    recorder = CheckRecorder(profiles.profile_for(nodeid).key, nodeid)
     yield recorder
     setup = getattr(request.node, "rep_setup", None)
     call = getattr(request.node, "rep_call", None)
@@ -138,9 +169,9 @@ def api_coverage(request) -> Coverage:
 
 
 @pytest.fixture
-def api_recorder(steps, api_coverage, request):
+def api_recorder(checks, api_coverage, request):
     def make(http, base_url: str, label: str = "") -> ApiRecorder:
-        return ApiRecorder(http, base_url, steps, api_coverage, request.node.nodeid, label)
+        return ApiRecorder(http, base_url, checks, api_coverage, request.node.nodeid, label)
     return make
 
 

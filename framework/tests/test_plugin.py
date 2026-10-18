@@ -3,6 +3,8 @@ import json
 
 import pytest
 
+from framework import pytest_plugin
+
 pytestmark = pytest.mark.unit
 
 CONFTEST = """
@@ -26,12 +28,12 @@ ORDER_LOG = "order.log"
 
 def _logging_test(name, body=""):
     return (f"from pathlib import Path\n"
-            f"def {name}(steps, e2e_ledger):\n"
+            f"def {name}(checks, e2e_ledger):\n"
             f"    Path('{ORDER_LOG}').open('a').write('{name}\\n')\n{body}")
 
 
 @pytest.fixture
-def toy_run(pytester, monkeypatch):
+def toy_suite(pytester, monkeypatch):
     monkeypatch.setenv("E2E_RESULTS_DIR", str(pytester.path / "reports"))
     monkeypatch.delenv("E2E_RUN_LABEL", raising=False)
     monkeypatch.delenv("E2E_ALLOW_DESTRUCTIVE", raising=False)
@@ -40,12 +42,12 @@ def toy_run(pytester, monkeypatch):
     pytester.makeini(INI)
     pytester.mkpydir("a_verification").joinpath("test_v.py").write_text(_logging_test(
         "test_verify",
-        "    steps.step('totals', lambda: (_ for _ in ()).throw(AssertionError('off by one')),\n"
+        "    checks.check('totals', lambda: (_ for _ in ()).throw(AssertionError('off by one')),\n"
         "               'Totals match the run')\n"))
     pytester.mkpydir("m_actions").joinpath("test_a.py").write_text(_logging_test(
         "test_action",
         "    e2e_ledger.register_entity('draft', 'd1', 'draft one')\n"
-        "    steps.step('send', lambda: 3, 'Three sent')\n"))
+        "    checks.check('send', lambda: 3, 'Three sent')\n"))
     pytester.mkpydir("z_baseline").joinpath("test_b.py").write_text(_logging_test(
         "test_baseline"))
     pytester.makepyfile(test_danger="""
@@ -54,9 +56,17 @@ import pytest
 def test_danger():
     raise RuntimeError('must never run without the opt-in')
 """)
-    result = pytester.runpytest_subprocess("-p", "no:cacheprovider")
-    run_dir = next(p for p in (pytester.path / "reports").iterdir() if p.is_dir())
-    return pytester, result, run_dir
+    def run(*args):
+        result = pytester.runpytest_subprocess("-p", "no:cacheprovider", *args)
+        reports = pytester.path / "reports"
+        found = [p for p in reports.iterdir() if p.is_dir()] if reports.exists() else []
+        return pytester, result, (found[0] if found else None)
+    return run
+
+
+@pytest.fixture
+def toy_run(toy_suite):
+    return toy_suite()
 
 
 def test_stages_order_the_run_regardless_of_file_order(toy_run):
@@ -96,3 +106,61 @@ def test_a_failure_preserves_the_runs_entities(toy_run):
     _, _, run_dir = toy_run
     ledger = json.loads((run_dir / "ledger.json").read_text())
     assert ledger["entities"][0]["preserve"] is True
+
+
+def test_a_whole_run_says_that_every_test_was_selected(toy_run):
+    _, _, run_dir = toy_run
+    assert json.loads((run_dir / "selection.json").read_text()) == {
+        "collected": 4, "selected": 4, "deselected": 0, "expression": ""}
+    assert "All 4 tests in the suite selected" in (run_dir / "report.html").read_text()
+
+
+def test_a_narrowed_run_says_what_it_left_out(toy_suite):
+    _, result, run_dir = toy_suite("-k", "verify")
+    result.assert_outcomes(failed=1, deselected=3)
+    selection = json.loads((run_dir / "selection.json").read_text())
+    assert selection == {"collected": 4, "selected": 1, "deselected": 3,
+                         "expression": '-k "verify"'}
+    sentence = "1 of 4 tests selected - 3 deselected by -k &quot;verify&quot;"
+    for page in ("report.html", "email.html"):
+        assert sentence in (run_dir / page).read_text(), f"{page} does not say what ran"
+    summary = json.loads((run_dir / "summary.json").read_text())
+    assert summary["selection"]["sentence"] == '1 of 4 tests selected - 3 deselected by -k "verify"'
+
+
+def test_a_collection_leaves_no_run_behind(toy_suite):
+    _, result, run_dir = toy_suite("--collect-only")
+    result.assert_outcomes()
+    assert run_dir is None, f"--collect-only wrote a run directory: {run_dir}"
+
+
+class _FakeConfig:
+    # Complete enough that pytest_configure succeeds on it, so the guard is what refuses.
+    def __init__(self, **attributes):
+        self.stash = {}
+        self.__dict__.update(attributes)
+
+    def addinivalue_line(self, name, line):
+        pass
+
+
+@pytest.fixture
+def no_run_id(monkeypatch):
+    monkeypatch.setattr(pytest_plugin.tokens, "current_run_id", lambda: "0101_00001111")
+
+
+def test_a_parallel_worker_is_refused(no_run_id):
+    with pytest.raises(pytest.UsageError, match="single-process"):
+        pytest_plugin.pytest_configure(_FakeConfig(workerinput={"workerid": "gw0"}))
+
+
+def test_a_new_session_does_not_inherit_the_last_ones_deselections(no_run_id):
+    pytest_plugin._deselected.append(object())
+    pytest_plugin.pytest_configure(_FakeConfig())
+    assert pytest_plugin._deselected == []
+
+
+def test_a_single_process_config_is_accepted(no_run_id):
+    config = _FakeConfig()
+    pytest_plugin.pytest_configure(config)
+    assert config.stash

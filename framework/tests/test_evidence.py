@@ -4,7 +4,7 @@ import json
 import pytest
 
 from framework.reporting import evidence
-from framework.reporting.recorder import StepRecorder
+from framework.reporting.recorder import CheckRecorder
 from framework.reporting.report_builder import build
 from framework.ui import tracing
 
@@ -71,34 +71,34 @@ def fail(message):
 
 def browser_test(page=None):
     context, page = FakeContext(), page or FakePage()
-    steps = StepRecorder("demo", NODEID)
-    return context, page, steps, tracing.Evidence(context, page, steps)
+    checks = CheckRecorder("demo", NODEID)
+    return context, page, checks, tracing.Evidence(context, page, checks)
 
 
 def test_only_ui_checks_get_a_screen_and_only_once_a_page_is_open():
-    context, page, steps, ui = browser_test(FakePage(url="about:blank"))
-    steps.step("the audience is ours", lambda: None, "ours", ui=True)
+    context, page, checks, ui = browser_test(FakePage(url="about:blank"))
+    checks.check("the audience is ours", lambda: None, "ours", ui=True)
     page.url = "http://app/#/list"
-    steps.step("the API has it", lambda: None, "stored")
-    steps.step("the list shows it sent", lambda: None, "sent", ui=True)
+    checks.check("the API has it", lambda: None, "stored")
+    checks.check("the list shows it sent", lambda: None, "sent", ui=True)
     assert [name for name, _ in ui.shots] == ["03 screen.png"]
     assert context.tracing.calls[:3] == [("start", "test_send"), ("group", "the audience is ours"),
                                          ("group_end",)]
 
 
 def test_an_unchanged_screen_is_skipped_but_a_failed_one_is_always_kept():
-    _, _, steps, ui = browser_test(FakePage(screens=[b"list", b"list", b"list"]))
-    steps.step("the list shows it sent", lambda: None, "sent", ui=True)
-    steps.step("the badge says sent", lambda: None, "sent", ui=True)
-    steps.soft_step("the chips show the server's truth", fail("still pending"), "truth", ui=True)
+    _, _, checks, ui = browser_test(FakePage(screens=[b"list", b"list", b"list"]))
+    checks.check("the list shows it sent", lambda: None, "sent", ui=True)
+    checks.check("the badge says sent", lambda: None, "sent", ui=True)
+    checks.soft_check("the chips show the server's truth", fail("still pending"), "truth", ui=True)
     assert [name for name, _ in ui.shots] == ["01 screen.png", "03 screen.png"]
 
 
 def test_a_failed_ui_check_keeps_trace_and_screens_as_evidence(tmp_path):
-    _, page, steps, ui = browser_test()
-    steps.step("filter by tag", lambda: None, "filtered", ui=True)
-    steps.soft_step("bulk add a tag", fail("still pending"), "not pending", ui=True)
-    folder = ui.stop(tmp_path, tracing.failed(steps, node=None))
+    _, page, checks, ui = browser_test()
+    checks.check("filter by tag", lambda: None, "filtered", ui=True)
+    checks.soft_check("bulk add a tag", fail("still pending"), "not pending", ui=True)
+    folder = ui.stop(tmp_path, tracing.failed(checks, node=None))
     assert folder == tmp_path / "evidence" / "test_send"
     assert sorted(p.name for p in folder.iterdir()) == [
         "00 trace.zip", "01 screen.png", "02 screen.png", "test.txt"]
@@ -106,51 +106,51 @@ def test_a_failed_ui_check_keeps_trace_and_screens_as_evidence(tmp_path):
 
 
 def test_every_browser_test_keeps_its_video_and_the_report_can_find_it(tmp_path):
-    _, page, steps, ui = browser_test()
-    steps.step("the list shows it sent", lambda: None, "sent", ui=True)
-    ui.stop(tmp_path, tracing.failed(steps, node=None))
+    _, page, checks, ui = browser_test()
+    checks.check("the list shows it sent", lambda: None, "sent", ui=True)
+    ui.stop(tmp_path, tracing.failed(checks, node=None))
     assert (tmp_path / "videos" / "test_send.webm").read_bytes() == b"webm"
-    assert steps.metadata["video"] == "videos/test_send.webm"
+    assert checks.metadata["video"] == "videos/test_send.webm"
     assert page.video.deleted, "the temporary recording must be removed once saved"
 
 
 def test_an_inbox_failure_keeps_no_screen_evidence(tmp_path):
-    context, page, steps, ui = browser_test()
-    steps.step("the list shows it sent", lambda: None, "sent", ui=True)
-    steps.soft_step("the suppressed contact got nothing", fail("they got it"), "nothing")
-    assert ui.stop(tmp_path, tracing.failed(steps, node=None)) is None
+    context, page, checks, ui = browser_test()
+    checks.check("the list shows it sent", lambda: None, "sent", ui=True)
+    checks.soft_check("the suppressed contact got nothing", fail("they got it"), "nothing")
+    assert ui.stop(tmp_path, tracing.failed(checks, node=None)) is None
     assert not (tmp_path / "evidence").exists()
     assert context.tracing.calls[-1] == ("stop", None) and context.closed
 
 
 def test_a_break_outside_any_check_keeps_screen_evidence(tmp_path):
-    _, _, steps, ui = browser_test()
-    steps.step("the list shows it sent", lambda: None, "sent", ui=True)
+    _, _, checks, ui = browser_test()
+    checks.check("the list shows it sent", lambda: None, "sent", ui=True)
     folder = ui.stop(tmp_path, test_failed=True)
     assert (folder / "00 trace.zip").exists()
 
 
 def test_a_pass_keeps_only_its_video(tmp_path):
-    _, _, steps, ui = browser_test()
-    steps.step("the list shows it sent", lambda: None, "sent", ui=True)
-    assert ui.stop(tmp_path, tracing.failed(steps, node=None)) is None
+    _, _, checks, ui = browser_test()
+    checks.check("the list shows it sent", lambda: None, "sent", ui=True)
+    assert ui.stop(tmp_path, tracing.failed(checks, node=None)) is None
     assert not (tmp_path / "evidence").exists()
     assert [p.name for p in (tmp_path / "videos").iterdir()] == ["test_send.webm"]
 
 
 def test_a_failed_check_keeps_what_it_saw_and_a_passed_one_keeps_nothing(tmp_path):
-    steps = StepRecorder("demo", NODEID)
+    checks = CheckRecorder("demo", NODEID)
 
     def leaked():
-        steps.attach("the email they received", "<p>Hello</p>", "html")
-        steps.attach("the email they received", b"Subject: hi", "eml")
+        checks.attach("the email they received", "<p>Hello</p>", "html")
+        checks.attach("the email they received", b"Subject: hi", "eml")
         raise AssertionError("they got it")
 
     def delivered():
-        steps.attach("the email", "<p>fine</p>", "html")
-    steps.step("each copy arrived", delivered, "arrived")
-    steps.soft_step("the suppressed contact got nothing", leaked, "nothing")
-    written = evidence.save_attachments(steps, tmp_path)
+        checks.attach("the email", "<p>fine</p>", "html")
+    checks.check("each copy arrived", delivered, "arrived")
+    checks.soft_check("the suppressed contact got nothing", leaked, "nothing")
+    written = evidence.save_attachments(checks, tmp_path)
     assert sorted(p.name for p in written) == [
         "02 the email they received.eml", "02 the email they received.html"]
     assert written[0].parent == tmp_path / "evidence" / "test_send"
@@ -178,26 +178,26 @@ def test_a_careless_long_label_is_still_cut_to_its_limit():
 
 
 def test_two_tests_with_one_name_get_two_folders(tmp_path):
-    first = evidence.folder_for(StepRecorder("demo", NODEID), tmp_path)
-    second = evidence.folder_for(StepRecorder("demo", "other/test_send.py::test_send[chromium]"),
+    first = evidence.folder_for(CheckRecorder("demo", NODEID), tmp_path)
+    second = evidence.folder_for(CheckRecorder("demo", "other/test_send.py::test_send[chromium]"),
                                  tmp_path)
     assert (first.name, second.name) == ("test_send", "test_send_2")
 
 
 def test_the_report_links_each_check_to_its_own_evidence(tmp_path):
-    _, _, steps, ui = browser_test()
-    steps.step("the list shows it sent", lambda: None, "sent", ui=True)
+    _, _, checks, ui = browser_test()
+    checks.check("the list shows it sent", lambda: None, "sent", ui=True)
 
     def leaked():
-        steps.attach("the email they received", "<p>Hello</p>", "html")
-        steps.attach("the email they received - headers", "To: held")
+        checks.attach("the email they received", "<p>Hello</p>", "html")
+        checks.attach("the email they received - headers", "To: held")
         raise AssertionError("they got it")
-    steps.soft_step("bulk add a tag", fail("still pending"), "not pending", ui=True)
-    steps.soft_step("the suppressed contact got nothing", leaked, "nothing")
-    steps.finalize("completed")
+    checks.soft_check("bulk add a tag", fail("still pending"), "not pending", ui=True)
+    checks.soft_check("the suppressed contact got nothing", leaked, "nothing")
+    checks.finalize("completed")
     ui.stop(tmp_path, test_failed=True)
-    steps.save(tmp_path)
-    evidence.save_attachments(steps, tmp_path)
+    checks.save(tmp_path)
+    evidence.save_attachments(checks, tmp_path)
     manifest = {"run_id": "r1", "started": "2026-09-30T10:00:00+00:00",
                 "finished": "2026-09-30T10:01:00+00:00", "duration": 60,
                 "environment": "local", "interrupted": False,
@@ -220,25 +220,25 @@ def test_the_report_links_each_check_to_its_own_evidence(tmp_path):
 
 
 def test_a_long_check_sentence_never_reaches_a_file_name(tmp_path):
-    steps = StepRecorder("demo", NODEID)
+    checks = CheckRecorder("demo", NODEID)
 
     def wrong():
-        steps.attach("the rows it read", "[]", "json")
+        checks.attach("the rows it read", "[]", "json")
         raise AssertionError("one row short")
-    steps.soft_step(LONG_CHECK, wrong, "every row")
-    written = evidence.save_attachments(steps, tmp_path)
+    checks.soft_check(LONG_CHECK, wrong, "every row")
+    written = evidence.save_attachments(checks, tmp_path)
     assert [p.name for p in written] == ["01 the rows it read.json"]
 
 
 def test_test_txt_lists_every_check_with_its_number_and_result(tmp_path):
-    steps = StepRecorder("demo", NODEID)
+    checks = CheckRecorder("demo", NODEID)
 
     def leaked():
-        steps.attach("the email they received", "<p>Hello</p>", "html")
+        checks.attach("the email they received", "<p>Hello</p>", "html")
         raise AssertionError("they got it")
-    steps.step("each copy arrived", lambda: None, "arrived")
-    steps.soft_step("the suppressed contact got nothing", leaked, "nothing")
-    evidence.save_attachments(steps, tmp_path)
+    checks.check("each copy arrived", lambda: None, "arrived")
+    checks.soft_check("the suppressed contact got nothing", leaked, "nothing")
+    evidence.save_attachments(checks, tmp_path)
     lines = (tmp_path / "evidence" / "test_send" / "test.txt").read_text().splitlines()
     assert lines[0] == NODEID
     assert lines[2:] == ["01  PASSED  each copy arrived",

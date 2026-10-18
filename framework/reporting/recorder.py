@@ -1,4 +1,4 @@
-"""Recorded steps: checks that declare what they expect."""
+"""Recorded checks: assertions that declare what they expect."""
 import hashlib
 import json
 import re
@@ -47,12 +47,12 @@ def _json_safe(value):
     return value if isinstance(value, (str, int, float, bool)) else None
 
 
-class StepRecorder:
+class CheckRecorder:
     def __init__(self, suite: str, nodeid: str):
         self.suite = suite
         self.nodeid = nodeid
         self._started = datetime.now(UTC)
-        self.steps: list[dict] = []
+        self.checks: list[dict] = []
         self.metadata: dict = {}
         self.status = "running"
         self._soft_failures: list[str] = []
@@ -76,27 +76,27 @@ class StepRecorder:
                       f"{type(exc).__name__}: {exc}")
 
     def _add(self, name: str, status: str, message: str, data: dict,
-             expected: str = None, means: str = None, error: str = None,
+             expected: str | None = None, means: str | None = None, error: str | None = None,
              ui: bool = False) -> dict:
-        step = {"step": name, "status": status, "message": message,
-                "at": datetime.now(UTC).isoformat(timespec="seconds"),
-                "data": {k: v for k, v in data.items() if v is not None}}
+        check = {"check": name, "status": status, "message": message,
+                 "at": datetime.now(UTC).isoformat(timespec="seconds"),
+                 "data": {k: v for k, v in data.items() if v is not None}}
         for key, value in (("expected", expected), ("means", means), ("error", error)):
             if value:
-                step[key] = value
+                check[key] = value
         if ui:
-            step["ui"] = True
+            check["ui"] = True
         if self._pending:
-            self.attachments[len(self.steps) + 1] = self._pending
-            step["attachments"] = [f"{label}.{ext}" for label, ext, _ in self._pending]
+            self.attachments[len(self.checks) + 1] = self._pending
+            check["attachments"] = [f"{label}.{ext}" for label, ext, _ in self._pending]
             self._pending = []
-        self.steps.append(step)
+        self.checks.append(check)
         print(f"[{status.upper()}] {name}: {message}")
-        self._notify("finished", step, len(self.steps))
-        return step
+        self._notify("finished", check, len(self.checks))
+        return check
 
-    def step(self, name: str, fn, expected: str = "", means: str = None, found=None,
-             ui: bool = False, **data):
+    def check(self, name: str, fn, expected: str = "", means: str | None = None, found=None,
+              ui: bool = False, **data):
         """Runs a check and records it; on failure records the reason and re-raises."""
         self._pending = []
         self._notify("started", name)
@@ -113,15 +113,18 @@ class StepRecorder:
         self._add(name, PASSED, said, data, ui=ui)
         return out
 
-    def soft_step(self, name: str, fn, expected: str = "", means: str = None, found=None,
-                  ui: bool = False, **data):
+    def soft_check(self, name: str, fn, expected: str = "", means: str | None = None, found=None,
+                   ui: bool = False, **data):
         try:
-            return self.step(name, fn, expected, means=means, found=found, ui=ui, **data)
+            return self.check(name, fn, expected, means=means, found=found, ui=ui, **data)
         except Exception as exc:
+            # The test ran on from here, so its last check is not where it stopped.
+            if self.checks and self.checks[-1]["status"] == FAILED:
+                self.checks[-1]["soft"] = True
             self._soft_failures.append(f"{name}: {describe(exc)}")
             return None
 
-    def skip_step(self, name: str, reason: str, expected: str = "", **data):
+    def skip_check(self, name: str, reason: str, expected: str = "", **data):
         self._add(name, SKIPPED, reason, data, expected=expected)
 
     def known_issue(self, name: str, message: str, **data):
@@ -137,7 +140,7 @@ class StepRecorder:
                 + "\n- ".join(self._soft_failures))
 
     def finalize(self, status: str):
-        if status == "completed" and any(s["status"] == FAILED for s in self.steps):
+        if status == "completed" and any(s["status"] == FAILED for s in self.checks):
             status = "failed"
         self.status = status
 
@@ -147,12 +150,12 @@ class StepRecorder:
                 "started": self._started.isoformat(timespec="seconds"),
                 "ended": ended.isoformat(timespec="seconds"),
                 "duration": round((ended - self._started).total_seconds(), 2),
-                "steps": self.steps, "metadata": self.metadata}
+                "checks": self.checks, "metadata": self.metadata}
 
     def save(self, directory: Path) -> Path:
         directory = Path(directory)
         directory.mkdir(parents=True, exist_ok=True)
-        path = directory / f"steps__{safe_name(self.nodeid)}.json"
+        path = directory / f"checks__{safe_name(self.nodeid)}.json"
         path.write_text(json.dumps(self.to_dict(), indent=2, default=str),
                         encoding="utf-8")
         return path

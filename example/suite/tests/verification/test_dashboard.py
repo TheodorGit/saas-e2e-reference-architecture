@@ -9,7 +9,7 @@ from framework.polling import poll_until
 pytestmark = pytest.mark.pipeline
 
 
-def test_dashboard_deltas(app_page, e2e_ledger, baseline, config, steps):
+def test_dashboard_deltas(app_page, e2e_ledger, baseline, config, checks):
     entries = e2e_ledger.entries
     expected = {
         "credits": -kinds.spend(entries)["total"],
@@ -28,17 +28,17 @@ def test_dashboard_deltas(app_page, e2e_ledger, baseline, config, steps):
                              expected["credits"], config.ingest_budget_s, 3)
 
     for key, want in expected.items():
-        steps.soft_step(f"{key} delta",
-                        lambda key=key, want=want: _delta(before, now, key, want, waited,
-                                                          steps),
-                        expected=f"moved by {want:+d}, what the run did", ui=True)
-    steps.raise_soft_failures()
+        checks.soft_check(f"{key} delta",
+                          lambda key=key, want=want: _delta(before, now, key, want, waited,
+                                                            checks),
+                          expected=f"moved by {want:+d}, what the run did", ui=True)
+    checks.raise_soft_failures()
 
 
-def _delta(before: dict, now: dict, key: str, want: int, waited: float, steps) -> int:
+def _delta(before: dict, now: dict, key: str, want: int, waited: float, checks) -> int:
     moved = now[key] - before[key]
-    evidence.data(steps, "the dashboard readings", {"before the run": before,
-                                                    "now": now, "the run accounts for": want})
+    evidence.data(checks, "the dashboard readings", {"before the run": before,
+                                                     "now": now, "the run accounts for": want})
     assert moved == want, f"{key} moved by {moved:+d} ({before[key]} -> {now[key]}), " \
                           f"the run accounts for {want:+d} ({waited:.0f}s allowed)"
     return moved

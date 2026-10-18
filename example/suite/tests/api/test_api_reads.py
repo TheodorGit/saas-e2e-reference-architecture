@@ -8,7 +8,7 @@ pytestmark = pytest.mark.api
 UNKNOWN_ID = 999_999_999
 
 
-def test_api_reads_agree(v1, app_api, e2e_ledger, steps):
+def test_api_reads_agree(v1, app_api, e2e_ledger, checks):
     credits = v1.call("GET", "/v1/credits")
     if credits is not None and credits.status_code == 200:
         body = credits.json()
@@ -21,8 +21,8 @@ def test_api_reads_agree(v1, app_api, e2e_ledger, steps):
             v1.check("journal rows are well-formed", lambda: _rows(body["journal"]),
                      expected="every row has an id, action, reference and whole credits")
         else:
-            steps.skip_step("journal rows are well-formed", "the journal has no rows yet",
-                            expected="every row has an id, action, reference and whole credits")
+            checks.skip_check("journal rows are well-formed", "the journal has no rows yet",
+                              expected="every row has an id, action, reference and whole credits")
 
     lists = v1.call("GET", "/v1/address-suppression-lists")
     if lists is not None and lists.status_code == 200:
@@ -42,8 +42,8 @@ def test_api_reads_agree(v1, app_api, e2e_ledger, steps):
             v1.check("report counts are their lists' lengths", lambda: _counts(report.json()),
                      expected="delivered, opens and clicks equal the lengths of their lists")
     else:
-        steps.skip_step("a report read", "this session sent no email batch to read",
-                        expected="a report whose counts match its lists")
+        checks.skip_check("a report read", "this session sent no email batch to read",
+                          expected="a report whose counts match its lists")
     v1.call("GET", "/v1/email-batches/{batch_id}/report", expect=404,
             name="an unknown email batch is 404", batch_id=UNKNOWN_ID)
 
@@ -54,7 +54,7 @@ def _equal(got, want, what: str):
 
 def _rows(rows: list):
     bad = [r for r in rows if not (isinstance(r.get("id"), int) and r.get("action")
-                                  and r.get("reference") and isinstance(r.get("credits"), int))]
+                                   and r.get("reference") and isinstance(r.get("credits"), int))]
     assert not bad, f"malformed journal rows: {bad[:3]}"
     return len(rows)
 

@@ -16,7 +16,7 @@ def test_documented_endpoints_were_exercised(v1, api_coverage):
         lines = (["documented:"] + [f"  {m} {p}" for m, p in documented]
                  + ["executed this session:"]
                  + [f"  {k}" for k in sorted(api_coverage.executed())])
-        v1.steps.attach("documented and executed endpoints", "\n".join(lines))
+        v1.checks.attach("documented and executed endpoints", "\n".join(lines))
         return assert_exercised(documented, api_coverage)
     v1.check("every documented endpoint was executed this session", covered,
              expected=f"all {len(documented)} documented endpoints called by some test",

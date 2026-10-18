@@ -16,7 +16,7 @@ SURFACES = {"delivered": ("delivered", "delivered_to", "recipients"),
 ENGAGEMENT = ("opens", "clicks")
 
 
-def test_report_cards_list_and_api_agree(app_page, public_api, e2e_ledger, config, steps):
+def test_report_cards_list_and_api_agree(app_page, public_api, e2e_ledger, config, checks):
     sends = [e for e in e2e_ledger.entries if e["kind"] == kinds.SEND]
     if not sends:
         pytest.skip("no email batch to cross-check")
@@ -34,7 +34,7 @@ def test_report_cards_list_and_api_agree(app_page, public_api, e2e_ledger, confi
 
         def seen(check, api=api, entry=entry):
             def run():
-                evidence.data(steps, "the report the API returned",
+                evidence.data(checks, "the report the API returned",
                               {"report": api, "the run engaged": {
                                   f: entry.get(f) for f in ("recipients", "suppressed",
                                                             "opened", "clicked")}})
@@ -42,41 +42,40 @@ def test_report_cards_list_and_api_agree(app_page, public_api, e2e_ledger, confi
             return run
 
         for card, (count, listed, _) in SURFACES.items():
-            steps.soft_step(f"{name}: API {listed}",
-                            seen(lambda card=card, listed=listed, api=api, want=want, w=waited:
-                            assert_same(want[card], api[listed],
-                                        f"{listed} ({w:.0f}s allowed to land)",
-                                        allow_empty=card in ENGAGEMENT)),
-                            expected=f"{len(want[card])}: exactly who the run engaged",
-                            means="The report does not match what happened.")
-            steps.soft_step(f"{name}: API {count} is its list's length",
-                            seen(lambda count=count, listed=listed, api=api:
-                                 _equal(api[count], len(api[listed]), f"{count} vs its list")),
-                            expected="a count and its addresses cannot disagree")
+            checks.soft_check(f"{name}: API {listed}",
+                              seen(lambda card=card, listed=listed, api=api, want=want, w=waited:
+                              assert_same(want[card], api[listed],
+                                          f"{listed} ({w:.0f}s allowed to land)",
+                                          allow_empty=card in ENGAGEMENT)),
+                              expected=f"{len(want[card])}: exactly who the run engaged",
+                              means="The report does not match what happened.")
+            checks.soft_check(f"{name}: API {count} is its list's length",
+                              seen(lambda count=count, listed=listed, api=api:
+                                   _equal(api[count], len(api[listed]), f"{count} vs its list")),
+                              expected="a count and its addresses cannot disagree")
         if entry.get("suppressed"):
-            steps.soft_step(f"{name}: audience partition",
-                            seen(lambda entry=entry, api=api: assert_partition(
-                                entry["recipients"] + entry["suppressed"],
+            checks.soft_check(f"{name}: audience partition",
+                              seen(lambda entry=entry, api=api: assert_partition(
+                                  entry["recipients"] + entry["suppressed"],
                                 {"delivered": api["delivered_to"],
-                                 "suppressed": entry["suppressed"]})),
-                            expected="every audience member delivered or suppressed, "
-                                     "never both, never neither")
+                                   "suppressed": entry["suppressed"]})),
+                              expected="every audience member delivered or suppressed, "
+                                 "never both, never neither")
 
         page.open(entry["batch_id"], name)
         for card in SURFACES:
-            shown = page.card(card)
             listed = page.drill(card)
-            steps.soft_step(f"{name}: UI {card} card equals its list",
-                            lambda shown=shown, listed=listed, card=card:
-                            _equal(shown, len(listed), f"{card} card vs drill-down"),
-                            expected="the card's number is the length of its list", ui=True)
-            steps.soft_step(f"{name}: UI {card} list",
-                            lambda listed=listed, card=card, want=want:
-                            assert_same(want[card], listed, f"{card} drill-down",
-                                        allow_empty=card in ENGAGEMENT),
-                            expected="the drill-down names exactly who the run engaged",
-                            ui=True)
-    steps.raise_soft_failures()
+            checks.soft_check(f"{name}: UI {card} card equals its list",
+                              lambda listed=listed, card=card:
+                              page.expect_card(card, len(listed)),
+                              expected="the card's number is the length of its list", ui=True)
+            checks.soft_check(f"{name}: UI {card} list",
+                              lambda listed=listed, card=card, want=want:
+                              assert_same(want[card], listed, f"{card} drill-down",
+                                          allow_empty=card in ENGAGEMENT),
+                              expected="the drill-down names exactly who the run engaged",
+                              ui=True)
+    checks.raise_soft_failures()
 
 
 def _equal(got, want, what: str):

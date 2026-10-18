@@ -1,1 +1,1 @@
-"""Recorded steps, evidence, failure reasons, reports and mailing."""
+"""Recorded checks, evidence, failure reasons, reports and mailing."""

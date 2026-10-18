@@ -15,7 +15,7 @@ pytestmark = pytest.mark.pipeline
 
 def test_email_batch_send_with_suppression(app_page, app_api, inbox, config, run_id,
                                            entity_name, subject_token, make_contact,
-                                           make_suppression, record, e2e_ledger, steps):
+                                           make_suppression, record, e2e_ledger, checks):
     tag = entity_name("audience")
     # Created first, so it would be the first message sent if it leaked.
     held = make_contact("held", tags=[tag], first_name="Held")["email"]
@@ -25,15 +25,15 @@ def test_email_batch_send_with_suppression(app_page, app_api, inbox, config, run
     expected = sorted([reader, control])
 
     audience = [c["email"] for c in app_api.contacts(tag=tag) if c["status"] == "subscribed"]
-    steps.step("the audience is exactly the three contacts made here",
-               lambda: assert_same([held, reader, control], audience, "audience"),
-               expected="held, reader and control - no one more, no one less")
-    steps.step("audience within the cap",
-               lambda: assert_within_cap(len(audience), config.audience_cap),
-               expected=f"at most {config.audience_cap} members")
-    steps.step("audience is ours",
-               lambda: assert_owned(audience, lambda a: config.is_ours(a, run_id)),
-               expected="every member is a run-owned alias")
+    checks.check("the audience is exactly the three contacts made here",
+                 lambda: assert_same([held, reader, control], audience, "audience"),
+                 expected="held, reader and control - no one more, no one less")
+    checks.check("audience within the cap",
+                 lambda: assert_within_cap(len(audience), config.audience_cap),
+                 expected=f"at most {config.audience_cap} members")
+    checks.check("audience is ours",
+                 lambda: assert_owned(audience, lambda a: config.is_ours(a, run_id)),
+                 expected="every member is a run-owned alias")
 
     subject = subject_token("send")
     name = entity_name("batch")
@@ -44,9 +44,9 @@ def test_email_batch_send_with_suppression(app_page, app_api, inbox, config, run
     wizard.message(name, f"{subject} for {{{{first_name}}}}", body_with_link(config.base_url))
     wizard.suppress(suppression["name"])
     listing = wizard.send_now()
-    steps.step("the list shows it sent",
-               lambda: listing.wait_until_sent(name, config.mail_budget_s),
-               expected="the row's status badge changes its text to Sent, in place", ui=True)
+    checks.check("the list shows it sent",
+                 lambda: listing.wait_until_sent(name, config.mail_budget_s),
+                 expected="the row's status badge changes its text to Sent, in place", ui=True)
 
     batch = app_api.batch_named(name)
     entry = record("batch.send", kinds.SEND, cost=len(expected), planned=len(expected),
@@ -60,20 +60,20 @@ def test_email_batch_send_with_suppression(app_page, app_api, inbox, config, run
                                      poll_s=2)
         missing = sorted(set(expected) - set(copies))
         if missing:
-            evidence.inbox_listing(steps, inbox, subject, "what the inbox held for this send")
+            evidence.inbox_listing(checks, inbox, subject, "what the inbox held for this send")
         assert not missing, f"no copy within {config.mail_budget_s}s for {missing}"
         return copies
-    copies = steps.step("each recipient's own copy arrived", arrived,
-                        expected=f"{len(expected)} copies, one per recipient")
+    copies = checks.check("each recipient's own copy arrived", arrived,
+                          expected=f"{len(expected)} copies, one per recipient")
 
     def held_back():
         leaked = inbox.search(subject=subject, to=held)
         for message in leaked:
-            evidence.email(steps, inbox, message, "the email they received")
+            evidence.email(checks, inbox, message, "the email they received")
         assert not leaked, f"the suppressed contact {held} received the email batch"
-    steps.step("the suppressed contact got nothing", held_back,
-               expected="no copy for the suppressed address, while the control's arrived",
-               means="An address suppression list did not keep its addresses out of a send.")
+    checks.check("the suppressed contact got nothing", held_back,
+                 expected="no copy for the suppressed address, while the control's arrived",
+                 means="An address suppression list did not keep its addresses out of a send.")
 
     def engaged():
         opened = engage(inbox, copies, TRACKERS, open_mail=True)
@@ -83,5 +83,5 @@ def test_email_batch_send_with_suppression(app_page, app_api, inbox, config, run
         assert not failures, "; ".join(failures)
         e2e_ledger.update(entry["name"], opened=opened["opened"], clicked=clicked["clicked"])
         return f"opened {len(opened['opened'])}, clicked {len(clicked['clicked'])}"
-    steps.step("engage: both open, the reader clicks", engaged,
-               expected="every pixel and tracked link answered; who was engaged is recorded")
+    checks.check("engage: both open, the reader clicks", engaged,
+                 expected="every pixel and tracked link answered; who was engaged is recorded")

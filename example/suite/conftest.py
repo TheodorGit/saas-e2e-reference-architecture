@@ -1,4 +1,5 @@
 """Fixtures that wire the Demo ESP App suite to the framework plugin."""
+import os
 import shutil
 import tempfile
 
@@ -16,7 +17,6 @@ from framework.ui import tracing
 
 pytest_plugins = ["framework.pytest_plugin"]
 
-UI_TIMEOUT_MS = 15_000
 STAGES = ("example/suite/tests/baseline/ = 0",
           "example/suite/tests/actions/ = 1",
           "example/suite/tests/api/ = 1",
@@ -27,6 +27,7 @@ def pytest_configure(config):
     # Set here so the option exists only where the plugin is loaded.
     for line in STAGES:
         config.addinivalue_line("e2e_stages", line)
+    expect.set_options(timeout=suite_config.load().ui_timeout_ms)
 
 
 @pytest.fixture(scope="session")
@@ -99,29 +100,44 @@ def make_suppression(app_api, e2e_ledger, entity_name):
     return make
 
 
-def _page(browser, config, steps, request, cookie: str = None):
-    expect.set_options(timeout=UI_TIMEOUT_MS)
+def _video_size():
+    # Unset, Playwright shrinks the recording to fit 800x800; a demo wants it full size.
+    value = os.getenv("E2E_VIDEO_SIZE", "")
+    if not value:
+        return None
+    width, _, height = value.partition("x")
+    return {"width": int(width), "height": int(height)}
+
+
+def _page(browser, config, checks, request, cookie: str | None = None):
     video_dir = tempfile.mkdtemp(prefix="e2e-video-")
     context = browser.new_context(base_url=config.base_url, accept_downloads=True,
-                                  record_video_dir=video_dir)
+                                  record_video_dir=video_dir,
+                                  record_video_size=_video_size())
     if cookie:
         context.add_cookies([{"name": "esp_session", "value": cookie, "url": config.base_url}])
-    context.set_default_timeout(UI_TIMEOUT_MS)
+    context.set_default_timeout(config.ui_timeout_ms)
     page = context.new_page()
-    screen = tracing.Evidence(context, page, steps)
-    yield page
-    screen.stop(tokens.run_dir(), tracing.failed(steps, request.node))
-    shutil.rmtree(video_dir, ignore_errors=True)
+    screen = tracing.Evidence(context, page, checks)
+    try:
+        yield page
+    finally:
+        try:
+            screen.stop(tokens.run_dir(), tracing.failed(checks, request.node))
+        finally:
+            # stop() closes the context on its own path; closing a closed one is a no-op.
+            context.close()
+            shutil.rmtree(video_dir, ignore_errors=True)
 
 
 @pytest.fixture
-def app_page(browser, config, app_api, steps, request):
-    yield from _page(browser, config, steps, request, cookie=app_api.session_cookie)
+def app_page(browser, config, app_api, checks, request):
+    yield from _page(browser, config, checks, request, cookie=app_api.session_cookie)
 
 
 @pytest.fixture
-def anon_page(browser, config, steps, request):
-    yield from _page(browser, config, steps, request)
+def anon_page(browser, config, checks, request):
+    yield from _page(browser, config, checks, request)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -145,6 +161,6 @@ def cleanup(e2e_ledger):
     for entity in targets:
         try:
             removers[entity["kind"]](entity["id"])
-            ledger.mark_removed(entity["id"])
+            ledger.mark_removed(entity["kind"], entity["id"])
         except (AppError, requests.RequestException) as exc:
             print(f"[cleanup] could not remove {entity['kind']} {entity['name']}: {exc}")

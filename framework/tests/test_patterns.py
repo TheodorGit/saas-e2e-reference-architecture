@@ -6,7 +6,7 @@ import pytest
 from framework.delivery.content_checks import list_unsubscribe_targets
 from framework.pipeline import sets, windows
 from framework.pipeline.expectations import OBSERVE, check
-from framework.reporting.recorder import FAILED, PASSED, StepRecorder
+from framework.reporting.recorder import FAILED, PASSED, CheckRecorder
 from framework.ui.names import label_pattern
 
 pytestmark = pytest.mark.unit
@@ -82,14 +82,14 @@ def test_no_open_window_is_outside_and_closes_at_is_past_the_margin():
 
 
 def test_true_and_false_are_asserted_observe_is_recorded():
-    steps = StepRecorder("t", "t::n")
-    assert check(steps, "click", False, False, "unsubscribe counted as a click") is False
-    assert check(steps, "open", OBSERVE, True, "one-click counted as an open") is True
+    checks = CheckRecorder("t", "t::n")
+    assert check(checks, "click", False, False, "unsubscribe counted as a click") is False
+    assert check(checks, "open", OBSERVE, True, "one-click counted as an open") is True
     with pytest.raises(AssertionError, match="expected False, observed True"):
-        check(steps, "click2", False, True, "unsubscribe counted as a click")
-    assert [s["status"] for s in steps.steps] == [PASSED, PASSED, FAILED]
-    assert steps.steps[1]["message"].startswith("observed, not asserted")
-    assert steps.steps[1]["data"]["observed"] is True
+        check(checks, "click2", False, True, "unsubscribe counted as a click")
+    assert [s["status"] for s in checks.checks] == [PASSED, PASSED, FAILED]
+    assert checks.checks[1]["message"].startswith("observed, not asserted")
+    assert checks.checks[1]["data"]["observed"] is True
 
 
 @pytest.mark.parametrize("name, matches", [

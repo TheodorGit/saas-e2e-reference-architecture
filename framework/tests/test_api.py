@@ -6,7 +6,7 @@ import requests
 
 from framework.api.coverage import assert_exercised, gaps
 from framework.api.recorder import ApiRecorder, Coverage
-from framework.reporting.recorder import FAILED, PASSED, StepRecorder
+from framework.reporting.recorder import FAILED, PASSED, CheckRecorder
 
 pytestmark = pytest.mark.unit
 
@@ -30,19 +30,19 @@ class FakeHttp:
         return FakeResponse(*answer)
 
 
-def recorder(answers: dict, steps=None, coverage=None):
-    return ApiRecorder(FakeHttp(answers), "http://h/", steps or StepRecorder("t", "t::n"),
+def recorder(answers: dict, checks=None, coverage=None):
+    return ApiRecorder(FakeHttp(answers), "http://h/", checks or CheckRecorder("t", "t::n"),
                        coverage or Coverage(), "t::n")
 
 
-def test_calls_are_steps_counted_by_route_template():
+def test_calls_are_checks_counted_by_route_template():
     coverage = Coverage()
     api = recorder({"GET http://h/items/7": (200,), "DELETE http://h/items/7": (500, "boom")},
                    coverage=coverage)
     assert api.call("GET", "/items/{item_id}", item_id=7).status_code == 200
     assert api.call("DELETE", "/items/{item_id}", item_id=7).status_code == 500
-    assert [s["status"] for s in api.steps.steps] == [PASSED, FAILED]
-    assert "answered 500, expected 200: boom" in api.steps.steps[1]["message"]
+    assert [s["status"] for s in api.checks.checks] == [PASSED, FAILED]
+    assert "answered 500, expected 200: boom" in api.checks.checks[1]["message"]
     assert coverage.executed() == {"GET /items/{item_id}", "DELETE /items/{item_id}"}
 
 
@@ -51,26 +51,26 @@ def test_a_failed_call_keeps_the_exchange_as_evidence(tmp_path):
     api = recorder({"GET http://h/ok": (200,), "DELETE http://h/items/7": (500, "boom")})
     api.call("GET", "/ok")
     api.call("DELETE", "/items/{item_id}", item_id=7)
-    written = save_attachments(api.steps, tmp_path)
+    written = save_attachments(api.checks, tmp_path)
     assert [p.name for p in written] == [
         "02 request and response.txt"]
     assert "HTTP 500" in written[0].read_text() and "boom" in written[0].read_text()
 
 
-def test_a_failed_request_is_a_failed_step_and_not_coverage():
+def test_a_failed_request_is_a_failed_check_and_not_coverage():
     api = recorder({})
     assert api.call("GET", "/down") is None
-    assert api.steps.steps[0]["status"] == FAILED
+    assert api.checks.checks[0]["status"] == FAILED
     assert api.coverage.executed() == set()
     with pytest.raises(AssertionError, match="1 independent check"):
-        api.steps.raise_soft_failures()
+        api.checks.raise_soft_failures()
 
 
 def test_checks_are_soft():
     api = recorder({})
     api.check("first", lambda: (_ for _ in ()).throw(AssertionError("wrong")), "right")
     api.check("second", lambda: 1, "one")
-    assert [s["status"] for s in api.steps.steps] == [FAILED, PASSED]
+    assert [s["status"] for s in api.checks.checks] == [FAILED, PASSED]
 
 
 def test_docs_coverage_names_both_sides():
@@ -113,22 +113,22 @@ def test_holds_a_failure(api_recorder):
     api.call("GET", "/thing")
     # the body ends without raising anything
 
-def test_holds_a_soft_step(steps):
-    steps.soft_step("ui check", lambda: (_ for _ in ()).throw(AssertionError("wrong")),
+def test_holds_a_soft_check(checks):
+    checks.soft_check("ui check", lambda: (_ for _ in ()).throw(AssertionError("wrong")),
                     "right")
     # no raise_soft_failures(): the teardown must fail it anyway
 
-def test_raises_its_own(steps):
-    steps.soft_step("ui check", lambda: (_ for _ in ()).throw(AssertionError("wrong")),
+def test_raises_its_own(checks):
+    checks.soft_check("ui check", lambda: (_ for _ in ()).throw(AssertionError("wrong")),
                     "right")
-    steps.raise_soft_failures()
+    checks.raise_soft_failures()
 
 def test_clean(api_recorder):
     pass
 """
 
 
-def test_a_test_cannot_pass_while_holding_a_failed_step(pytester, monkeypatch):
+def test_a_test_cannot_pass_while_holding_a_failed_check(pytester, monkeypatch):
     monkeypatch.setenv("E2E_RESULTS_DIR", str(pytester.path / "reports"))
     monkeypatch.delenv("E2E_RUN_LABEL", raising=False)
     monkeypatch.delenv("E2E_REPORT_TO", raising=False)
@@ -140,8 +140,8 @@ def test_a_test_cannot_pass_while_holding_a_failed_step(pytester, monkeypatch):
     run_dir = next(p for p in (pytester.path / "reports").iterdir() if p.is_dir())
     manifest = json.loads((run_dir / "manifest.json").read_text())
     status = {t["func"]: t["status"] for t in manifest["tests"]}
-    assert status == {"test_holds_a_failure": "failed", "test_holds_a_soft_step": "failed",
+    assert status == {"test_holds_a_failure": "failed", "test_holds_a_soft_check": "failed",
                       "test_raises_its_own": "failed", "test_clean": "passed"}
-    for name in ("holds_a_failure", "holds_a_soft_step"):
-        steps = json.loads(next(run_dir.glob(f"steps__*{name}*.json")).read_text())
-        assert steps["status"] == "failed"
+    for name in ("holds_a_failure", "holds_a_soft_check"):
+        checks = json.loads(next(run_dir.glob(f"checks__*{name}*.json")).read_text())
+        assert checks["status"] == "failed"

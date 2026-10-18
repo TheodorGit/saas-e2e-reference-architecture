@@ -16,7 +16,7 @@ VALIDATION_COST = 5
 CLOCK_STEP_BUDGET_S = 10
 
 
-def test_validate_single_address(app_page, config, entity_name, record, steps):
+def test_validate_single_address(app_page, config, entity_name, record, checks):
     page = ValidatePage(app_page)
     page.open()
     token = entity_name("validate")
@@ -35,13 +35,13 @@ def test_validate_single_address(app_page, config, entity_name, record, steps):
         record("validation", kinds.VALIDATION, cost=cost, name=f"{token}-{number}",
                token=token, email=email, reference=body["reference"],
                expected_free=expected_free)
-        check(steps, f"validation {number} ({label}): free", expected_free, shown_free,
+        check(checks, f"validation {number} ({label}): free", expected_free, shown_free,
               f"validation {number} shown as free",
               means="The free window did not apply the way the product promises.", ui=True)
         if not shown_free:
-            steps.step(f"validation {number}: charge shown",
-                       lambda: _charged(result["charge"]),
-                       expected=f"'Charged {VALIDATION_COST} credits'", ui=True)
+            checks.check(f"validation {number}: charge shown",
+                         lambda: _charged(result["charge"]),
+                         expected=f"'Charged {VALIDATION_COST} credits'", ui=True)
             state["opened_at"] = datetime.now(UTC)
 
     validate(1, "first time")
@@ -50,19 +50,19 @@ def test_validate_single_address(app_page, config, entity_name, record, steps):
     closes = windows.closes_at(state["opened_at"], state["window_s"])
     wait_s = (closes - datetime.now(UTC)).total_seconds()
     if wait_s > config.max_window_wait_s:
-        steps.skip_step("validation 3 (after the window)",
-                        f"the free window is {state['window_s']}s, longer than the "
-                        f"{config.max_window_wait_s}s this run may wait",
-                        expected="billed again once the window has closed")
+        checks.skip_check("validation 3 (after the window)",
+                          f"the free window is {state['window_s']}s, longer than the "
+                          f"{config.max_window_wait_s}s this run may wait",
+                          expected="billed again once the window has closed")
         return
     # A rolling window closes by the clock; nothing observable announces it.
     time.sleep(max(0.0, wait_s))
     # The wall clock can step back during a sleep (VM time sync): confirm it passed.
     _, extra = poll_until(lambda: datetime.now(UTC), lambda now: now >= closes,
                           CLOCK_STEP_BUDGET_S, 0.2)
-    steps.step("the window has closed by the wall clock",
-               lambda: _passed(datetime.now(UTC), closes, extra),
-               expected="the clock is past the window's edge plus its margin")
+    checks.check("the window has closed by the wall clock",
+                 lambda: _passed(datetime.now(UTC), closes, extra),
+                 expected="the clock is past the window's edge plus its margin")
     validate(3, "after the window")
 
 

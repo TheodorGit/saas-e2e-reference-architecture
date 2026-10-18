@@ -17,20 +17,20 @@ def _panels(values: dict) -> str:
             f"email batches sent {values['batches_sent']:,}")
 
 
-def test_baseline_readings(app_page, public_api, e2e_ledger, steps):
+def test_baseline_readings(app_page, public_api, e2e_ledger, checks):
     journal = public_api.credits()["journal"]
-    steps.step("Read the billing journal",
-               lambda: e2e_ledger.snapshot("journal_max_id",
-                                           max((r["id"] for r in journal), default=0)),
-               expected="the newest journal row, so this run's rows can be told apart",
-               found=_newest)
-    steps.step("Read the balance through the public API",
-               lambda: e2e_ledger.snapshot("balance", public_api.credits()["balance"]),
-               expected="the credit balance before the run acts",
-               found=lambda balance: f"{balance:,} credits")
+    checks.check("Read the billing journal",
+                 lambda: e2e_ledger.snapshot("journal_max_id",
+                                             max((r["id"] for r in journal), default=0)),
+                 expected="the newest journal row, so this run's rows can be told apart",
+                 found=_newest)
+    checks.check("Read the balance through the public API",
+                 lambda: e2e_ledger.snapshot("balance", public_api.credits()["balance"]),
+                 expected="the credit balance before the run acts",
+                 found=lambda balance: f"{balance:,} credits")
 
     dashboard = DashboardPage(app_page)
     dashboard.open()
-    steps.step("Read the dashboard",
-               lambda: e2e_ledger.snapshot("dashboard", dashboard.values()),
-               expected="every panel painted a number", found=_panels, ui=True)
+    checks.check("Read the dashboard",
+                 lambda: e2e_ledger.snapshot("dashboard", dashboard.values()),
+                 expected="every panel painted a number", found=_panels, ui=True)

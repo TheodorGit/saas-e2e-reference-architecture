@@ -4,7 +4,7 @@ from pathlib import Path
 
 from framework import tokens
 from framework.reporting import profiles
-from framework.reporting.recorder import FAILED, SKIPPED, StepRecorder, safe_name
+from framework.reporting.recorder import FAILED, SKIPPED, CheckRecorder, safe_name
 
 EVIDENCE_DIR = "evidence"
 ID_FILE = "test.txt"
@@ -28,25 +28,25 @@ def check_file(number: int, label: str = "screen", ext: str = "png") -> str:
     return f"{number:02d} {middle(clean(tokens.shorten(label)), LABEL_MAX) or 'file'}.{ext}"
 
 
-def folder_name(recorder: StepRecorder) -> str:
+def folder_name(recorder: CheckRecorder) -> str:
     return safe_name(recorder.nodeid.split("::")[-1].split("[")[0])
 
 
-def title_of(recorder: StepRecorder) -> str:
+def title_of(recorder: CheckRecorder) -> str:
     func = recorder.nodeid.split("::")[-1].split("[")[0]
     return profiles.profile_for(recorder.nodeid).title_for(func)
 
 
-def write_index(recorder: StepRecorder, folder: Path):
+def write_index(recorder: CheckRecorder, folder: Path):
     # The report matches on the first line, the nodeid.
     lines = [recorder.nodeid, title_of(recorder)]
-    for number, step in enumerate(recorder.steps, 1):
-        result = (step.get("status") or SKIPPED).upper().replace("_", " ")
-        lines.append(f"{number:02d}  {result}  {step.get('step', '')}")
+    for number, check in enumerate(recorder.checks, 1):
+        result = (check.get("status") or SKIPPED).upper().replace("_", " ")
+        lines.append(f"{number:02d}  {result}  {check.get('check', '')}")
     (folder / ID_FILE).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def folder_for(recorder: StepRecorder, run_dir: Path) -> Path:
+def folder_for(recorder: CheckRecorder, run_dir: Path) -> Path:
     existing = getattr(recorder, "_evidence_folder", None)
     if existing is not None:
         return existing
@@ -61,10 +61,10 @@ def folder_for(recorder: StepRecorder, run_dir: Path) -> Path:
     return folder
 
 
-def save_attachments(recorder: StepRecorder, run_dir: Path) -> list[Path]:
+def save_attachments(recorder: CheckRecorder, run_dir: Path) -> list[Path]:
     written = []
     for number, items in sorted(recorder.attachments.items()):
-        if recorder.steps[number - 1].get("status") != FAILED:
+        if recorder.checks[number - 1].get("status") != FAILED:
             continue
         folder = folder_for(recorder, run_dir)
         for label, ext, content in items:
