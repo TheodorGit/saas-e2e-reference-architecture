@@ -21,6 +21,7 @@ class SuiteConfig:
     mail_budget_s: int
     ingest_budget_s: int
     max_window_wait_s: int
+    ui_timeout_ms: int
 
     def address(self, token: str) -> str:
         local, _, domain = self.inbox.partition("@")
@@ -47,4 +48,5 @@ def load() -> SuiteConfig:
         mail_budget_s=_int("E2E_MAIL_BUDGET_S", 60),
         ingest_budget_s=_int("E2E_INGEST_BUDGET_S", 60),
         max_window_wait_s=_int("E2E_MAX_WINDOW_WAIT_S", 90),
+        ui_timeout_ms=_int("E2E_UI_TIMEOUT_MS", 15_000),
     )

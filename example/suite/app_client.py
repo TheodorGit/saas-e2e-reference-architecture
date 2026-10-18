@@ -1,10 +1,9 @@
 """The Demo ESP App's JSON surfaces, as the suite reads them."""
 import requests
 
+from framework.api.recorder import TIMEOUT
 from framework.delivery.content_checks import UnsubscribeStandard
 from framework.delivery.links import TrackerPatterns
-
-TIMEOUT = 30
 
 TRACKERS = TrackerPatterns(open_pixel=r"/t/o/[\w-]+\.gif$", click=r"/t/c/[\w-]+/\d+$")
 UNSUBSCRIBE = UnsubscribeStandard(footer_anchor_texts=("Unsubscribe",),
@@ -41,9 +40,6 @@ class AppApi(_Client):
     def session_cookie(self) -> str:
         return self.http.cookies.get("esp_session")
 
-    def dashboard(self) -> dict:
-        return self.call("GET", "/api/dashboard")
-
     def contacts(self, q: str = "", tag: str = "") -> list[dict]:
         return self.call("GET", "/api/contacts", params={"q": q, "tag": tag})["items"]
 
@@ -72,7 +68,7 @@ class AppApi(_Client):
         return self.call("DELETE", f"/api/address-suppression-lists/{list_id}")
 
     def create_batch(self, name: str, subject: str, body_html: str,
-                     audience_tag: str = None, suppression_list_ids=()) -> dict:
+                     audience_tag: str | None = None, suppression_list_ids=()) -> dict:
         return self.call("POST", "/api/email-batches", json={
             "name": name, "subject": subject, "body_html": body_html,
             "audience_tag": audience_tag, "suppression_list_ids": list(suppression_list_ids)})
