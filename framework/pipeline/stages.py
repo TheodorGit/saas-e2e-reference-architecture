@@ -20,10 +20,9 @@ def parse_stages(lines: Iterable[str]) -> list[tuple[str, int]]:
 def stage_of(path: str, stages: Sequence[tuple[str, int]],
              default: int = DEFAULT_RANK) -> int:
     normalised = str(path).replace("\\", "/")
-    for fragment, rank in stages:
-        if fragment in normalised:
-            return rank
-    return default
+    matches = [(len(fragment), rank) for fragment, rank in stages
+               if fragment in normalised]
+    return max(matches)[1] if matches else default
 
 
 def order_items(items: list, stages: Sequence[tuple[str, int]]) -> None:

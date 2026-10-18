@@ -23,6 +23,14 @@ def test_unlisted_paths_take_the_default_rank():
     assert stage_of(r"suite\verification\test_totals.py", STAGES) == 2
 
 
+def test_the_most_specific_stage_wins_whatever_order_the_lines_are_in():
+    broad_first = parse_stages(["suite/ = 0", "suite/verification/ = 2"])
+    narrow_first = parse_stages(["suite/verification/ = 2", "suite/ = 0"])
+    for stages in (broad_first, narrow_first):
+        assert stage_of("suite/verification/test_totals.py", stages) == 2
+        assert stage_of("suite/actions/test_send.py", stages) == 0
+
+
 def test_ordering_is_by_stage_and_stable_within_a_stage():
     names = ["verification/a", "actions/b", "baseline/c", "actions/d", "verification/e"]
     items = [SimpleNamespace(path=f"suite/{n}.py", name=n) for n in names]
