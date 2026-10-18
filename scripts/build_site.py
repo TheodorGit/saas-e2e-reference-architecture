@@ -42,9 +42,10 @@ def _when(iso: str) -> str:
 
 def _headline(summary: dict) -> str:
     c = summary["counts"]
+    passed = f"{c['checks_passed']} of {c['checks_recorded']} recorded checks passed"
     if summary["verdict"] == "passed":
-        return f"All {c['total']} tests passed - {c['checks']} checks"
-    return f"{c['failed']} of {c['total']} tests failed - {c['checks']} checks"
+        return f"All {c['total']} tests passed - {passed}"
+    return f"{c['failed']} of {c['total']} tests failed - {passed}"
 
 
 def card(folder: str, summary: dict, title: str, text: str) -> str:
@@ -112,7 +113,11 @@ def main() -> int:
         if run is None:
             sys.exit(f"no finished {label} run with a report under {args.reports}")
         shutil.copytree(long_path(run), long_path(args.out / folder))
-        summaries[folder] = json.loads((run / "summary.json").read_text(encoding="utf-8"))
+        summary = json.loads((run / "summary.json").read_text(encoding="utf-8"))
+        if "checks_recorded" not in summary.get("counts", {}):
+            sys.exit(f"{run} was written before the counts said what they count; "
+                     f"rerun the {label} suite")
+        summaries[folder] = summary
     (args.out / "index.html").write_text(
         landing(summaries["green"], summaries["red"], args.red), encoding="utf-8")
     print(f"site built in {args.out}: green {summaries['green']['verdict']}, "

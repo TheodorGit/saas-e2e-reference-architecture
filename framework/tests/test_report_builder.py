@@ -4,7 +4,7 @@ import re
 import pytest
 
 from framework.reporting import profiles
-from framework.reporting.recorder import StepRecorder
+from framework.reporting.recorder import CheckRecorder
 from framework.reporting.report_builder import build, load_run, write_latest
 
 pytestmark = pytest.mark.unit
@@ -26,12 +26,12 @@ def profile():
     profiles.clear()
 
 
-def write_run(run_dir, tests, extra_steps=()):
+def write_run(run_dir, tests, extra_checks=()):
     manifest = {"run_id": "r1", "started": "2026-09-30T10:00:00+00:00",
                 "finished": "2026-09-30T10:05:00+00:00", "duration": 300,
                 "environment": "local", "interrupted": False, "tests": tests}
     (run_dir / "manifest.json").write_text(json.dumps(manifest))
-    for rec in extra_steps:
+    for rec in extra_checks:
         rec.save(run_dir)
 
 
@@ -41,9 +41,9 @@ def entry(nodeid, status, failure=None, skip_reason=None):
 
 
 def failing_recorder():
-    rec = StepRecorder("demo", FAIL_ID)
+    rec = CheckRecorder("demo", FAIL_ID)
     try:
-        rec.step("sent_total", lambda: (_ for _ in ()).throw(
+        rec.check("sent_total", lambda: (_ for _ in ()).throw(
             AssertionError("Journal charged 5, run spent 4")),
             "Journal charges exactly what the run spent",
             means="The run was charged for something it did not do.")
@@ -53,18 +53,24 @@ def failing_recorder():
     return rec
 
 
-def test_the_manifest_is_the_authority_even_without_step_files(tmp_path):
+def test_a_run_with_no_tests_is_refused_by_name(tmp_path):
+    write_run(tmp_path, [])
+    with pytest.raises(ValueError, match="lists no tests"):
+        load_run(tmp_path)
+
+
+def test_the_manifest_is_the_authority_even_without_check_files(tmp_path):
     write_run(tmp_path, [entry(PASS_ID, "passed"),
                          entry(FAIL_ID, "failed", failure="E   RuntimeError: fixture died")])
     run = load_run(tmp_path)
     assert run["counts"]["total"] == 2 and run["verdict"] == "failed"
     failed = next(t for t in run["tests"] if t["status"] == "failed")
-    assert failed["steps"] == []
+    assert failed["checks"] == []
 
 
 def test_verdict_precedence_failed_then_skipped_then_passed(tmp_path):
     write_run(tmp_path, [entry(PASS_ID, "passed"), entry(SKIP_ID, "skipped",
-                                                          skip_reason="no inbox")])
+                                                         skip_reason="no inbox")])
     assert load_run(tmp_path)["verdict"] == "skipped"
 
 
@@ -76,19 +82,32 @@ def test_titles_sections_and_facts_come_from_the_profile(tmp_path):
     assert run["suite_title"] == "Demo run" and run["facts"] == [("Tests", 2)]
 
 
-def test_steps_attach_by_nodeid_and_orphans_are_reported(tmp_path):
-    orphan = StepRecorder("demo", "suite/gone.py::test_gone")
+def test_checks_attach_by_nodeid_and_orphans_are_reported(tmp_path):
+    orphan = CheckRecorder("demo", "suite/gone.py::test_gone")
     orphan.finalize("completed")
     write_run(tmp_path, [entry(FAIL_ID, "failed", failure="E x")],
-              extra_steps=[failing_recorder(), orphan])
+              extra_checks=[failing_recorder(), orphan])
     run = load_run(tmp_path)
-    assert len(run["tests"][0]["steps"]) == 1
-    assert run["counts"]["orphan_step_files"] == ["suite/gone.py::test_gone"]
+    assert len(run["tests"][0]["checks"]) == 1
+    assert run["counts"]["orphan_check_files"] == ["suite/gone.py::test_gone"]
+
+
+def test_a_check_file_the_report_cannot_read_is_named_not_dropped(tmp_path):
+    write_run(tmp_path, [entry(FAIL_ID, "failed", failure="E x")],
+              extra_checks=[failing_recorder()])
+    (tmp_path / "checks__broken.json").write_text("{not json")
+    (tmp_path / "checks__nameless.json").write_text("{}")
+    unreadable = load_run(tmp_path)["counts"]["unreadable_check_files"]
+    assert unreadable == ["checks__broken.json", "checks__nameless.json"]
+    build(tmp_path)
+    report = (tmp_path / "report.html").read_text()
+    assert "2 check file(s) could not be read" in report
+    assert "checks__broken.json" in report and "checks__nameless.json" in report
 
 
 def test_the_red_report_says_what_was_expected_and_what_happened(tmp_path):
     write_run(tmp_path, [entry(PASS_ID, "passed"), entry(FAIL_ID, "failed", failure="E x")],
-              extra_steps=[failing_recorder()])
+              extra_checks=[failing_recorder()])
     built = build(tmp_path)
     report = (tmp_path / "report.html").read_text()
     email = (tmp_path / "email.html").read_text()
@@ -102,16 +121,16 @@ def test_the_red_report_says_what_was_expected_and_what_happened(tmp_path):
 
 def test_the_full_error_is_in_the_report_whole_and_folded(tmp_path):
     failure = "E  FIRST LINE of the failure\n" + "detail line\n" * 3000 + "E  LAST LINE"
-    rec = StepRecorder("demo", FAIL_ID)
-    long_error = "START of the step error " + "y" * 9000 + " END of the step error"
+    rec = CheckRecorder("demo", FAIL_ID)
+    long_error = "START of the check error " + "y" * 9000 + " END of the check error"
     with pytest.raises(AssertionError):
-        rec.step("check", lambda: (_ for _ in ()).throw(AssertionError(long_error)), "right")
+        rec.check("check", lambda: (_ for _ in ()).throw(AssertionError(long_error)), "right")
     rec.finalize("completed")
-    write_run(tmp_path, [entry(FAIL_ID, "failed", failure=failure)], extra_steps=[rec])
+    write_run(tmp_path, [entry(FAIL_ID, "failed", failure=failure)], extra_checks=[rec])
     build(tmp_path)
     report = (tmp_path / "report.html").read_text()
-    for part in ("FIRST LINE of the failure", "E  LAST LINE", "START of the step error",
-                 "END of the step error"):
+    for part in ("FIRST LINE of the failure", "E  LAST LINE", "START of the check error",
+                 "END of the check error"):
         assert part in report, f"{part!r} missing from the report"
     folded = re.search(r"<details[^>]*><summary[^>]*>Full error</summary><pre[^>]*>(.*?)</pre>"
                        r"</details>", report, re.DOTALL)
@@ -121,15 +140,15 @@ def test_the_full_error_is_in_the_report_whole_and_folded(tmp_path):
 
 
 def test_explanations_sit_at_the_check_they_explain(tmp_path):
-    rec = StepRecorder("demo", FAIL_ID)
-    rec.step("open the page", lambda: None, "the page opens")
-    rec.soft_step("totals match", lambda: (_ for _ in ()).throw(AssertionError("off by one")),
-                  "totals equal the run", means="Billing does not match the run.")
+    rec = CheckRecorder("demo", FAIL_ID)
+    rec.check("open the page", lambda: None, "the page opens")
+    rec.soft_check("totals match", lambda: (_ for _ in ()).throw(AssertionError("off by one")),
+                   "totals equal the run", means="Billing does not match the run.")
     rec.known_issue("legacy counter", "counts one short; accepted until fixed")
-    rec.step("close the page", lambda: None, "the page closes")
+    rec.check("close the page", lambda: None, "the page closes")
     rec.finalize("completed")
     write_run(tmp_path, [entry(FAIL_ID, "failed", failure="E  AssertionError: 1 failed")],
-              extra_steps=[rec])
+              extra_checks=[rec])
     build(tmp_path)
     report = (tmp_path / "report.html").read_text()
     at = {text: report.index(text) for text in (
@@ -145,17 +164,88 @@ def test_explanations_sit_at_the_check_they_explain(tmp_path):
 
 
 def test_a_passing_check_shows_what_it_confirmed_not_its_raw_value(tmp_path):
-    rec = StepRecorder("demo", PASS_ID)
-    rec.step("rows are well-formed", lambda: 383,
-             "every row has an id, a reference and a whole amount", rows="383")
+    rec = CheckRecorder("demo", PASS_ID)
+    rec.check("rows are well-formed", lambda: 383,
+              "every row has an id, a reference and a whole amount", rows="383")
     rec.finalize("completed")
-    write_run(tmp_path, [entry(PASS_ID, "passed")], extra_steps=[rec])
+    write_run(tmp_path, [entry(PASS_ID, "passed")], extra_checks=[rec])
     build(tmp_path)
     report = (tmp_path / "report.html").read_text()
     assert "every row has an id, a reference and a whole amount" in report
     assert "383" not in report, "a bare value reached the report"
-    saved = json.loads(next(tmp_path.glob("steps__*.json")).read_text())
-    assert saved["steps"][0]["data"]["result"] == 383, "the raw value must stay in the file"
+    saved = json.loads(next(tmp_path.glob("checks__*.json")).read_text())
+    assert saved["checks"][0]["data"]["result"] == 383, "the raw value must stay in the file"
+
+
+def test_the_headline_and_the_subject_both_say_what_was_recorded(tmp_path):
+    rec = CheckRecorder("demo", PASS_ID)
+    rec.check("first", lambda: None, "the first thing")
+    rec.check("second", lambda: None, "the second thing")
+    rec.finalize("completed")
+    write_run(tmp_path, [entry(PASS_ID, "passed")], extra_checks=[rec])
+    built = build(tmp_path)
+    report = (tmp_path / "report.html").read_text()
+    assert "2 of 2 recorded checks passed" in built["subject"]
+    assert "2 of 2 recorded checks passed" in report
+    assert "2 checks passed" not in report.replace("recorded checks passed", "")
+    assert load_run(tmp_path)["counts"]["checks_recorded"] == 2
+
+
+def test_a_failed_test_says_its_later_checks_never_ran(tmp_path):
+    rec = CheckRecorder("demo", FAIL_ID)
+    rec.check("the first check", lambda: None, "one")
+    with pytest.raises(AssertionError):
+        rec.check("the check that broke", lambda: (_ for _ in ()).throw(
+            AssertionError("the badge says 0")), "one item in the badge")
+    rec.finalize("completed")
+    write_run(tmp_path, [entry(FAIL_ID, "failed",
+                               failure="E   AssertionError: the badge says 0")],
+              extra_checks=[rec])
+    build(tmp_path)
+    report = (tmp_path / "report.html").read_text()
+    email = (tmp_path / "email.html").read_text()
+    assert "The test stopped at check 2, so whatever it would have checked" in report
+    assert "stopped at check 2" in email
+    assert load_run(tmp_path)["counts"]["checks_recorded"] == 2
+
+
+def test_a_test_that_broke_between_checks_says_where_it_got_to(tmp_path):
+    rec = CheckRecorder("demo", FAIL_ID)
+    rec.check("the only check", lambda: None, "one")
+    rec.finalize("completed")
+    write_run(tmp_path, [entry(FAIL_ID, "failed",
+                               failure="E   TimeoutError: Locator.click: Timeout exceeded")],
+              extra_checks=[rec])
+    build(tmp_path)
+    report = (tmp_path / "report.html").read_text()
+    email = (tmp_path / "email.html").read_text()
+    assert "The test stopped after check 1, on an action rather than a check" in report
+    assert "stopped after check 1" in email
+
+
+def test_an_independent_check_that_failed_does_not_claim_the_test_stopped(tmp_path):
+    rec = CheckRecorder("demo", FAIL_ID)
+    rec.soft_check("an independent check", lambda: (_ for _ in ()).throw(
+        AssertionError("one reading is off")), "every reading in agreement")
+    rec.finalize("completed")
+    write_run(tmp_path, [entry(FAIL_ID, "failed",
+                               failure="E   AssertionError: 1 independent check(s) failed")],
+              extra_checks=[rec])
+    build(tmp_path)
+    assert "stopped" not in (tmp_path / "report.html").read_text()
+
+
+def test_a_soft_failure_before_checks_that_passed_claims_nothing_either(tmp_path):
+    rec = CheckRecorder("demo", FAIL_ID)
+    rec.soft_check("an independent check", lambda: (_ for _ in ()).throw(
+        AssertionError("one reading is off")), "every reading in agreement")
+    rec.check("the test carried on", lambda: None, "the rest of the test runs")
+    rec.finalize("completed")
+    write_run(tmp_path, [entry(FAIL_ID, "failed",
+                               failure="E   AssertionError: 1 independent check(s) failed")],
+              extra_checks=[rec])
+    build(tmp_path)
+    assert "stopped" not in (tmp_path / "report.html").read_text()
 
 
 def test_latest_page_opens_the_newest_report_by_a_relative_link(tmp_path):

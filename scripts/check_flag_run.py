@@ -11,17 +11,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from example.app.bugs import FLAGS  # noqa: E402
 from example.suite import profile  # noqa: E402,F401  (report titles)
 from example.suite.bug_matrix import GUARDS, NOT_GUARDED  # noqa: E402
+from framework.pipeline.manifest import read_selection  # noqa: E402
 from framework.reporting.recorder import FAILED  # noqa: E402
 from framework.reporting.report_builder import load_run  # noqa: E402
 from framework.tokens import newest_run  # noqa: E402
 
 
-def first_failed_step(test: dict) -> str:
-    return next((s.get("step", "") for s in test["steps"] if s.get("status") == FAILED), "")
+def first_failed_check(test: dict) -> str:
+    return next((s.get("check", "") for s in test["checks"] if s.get("status") == FAILED), "")
 
 
 def describe(test: dict) -> str:
-    where = first_failed_step(test)
+    where = first_failed_check(test)
     return f"{test['func']} {test['status']}" + (f" at {where!r}" if where else "")
 
 
@@ -43,7 +44,7 @@ def check(run: dict, flag: str | None) -> tuple[list[str], list[str]]:
         problems.append(f"guard {guard.test} did not run")
     elif test["status"] != "failed":
         problems.append(f"guard {guard.test} is {test['status']}, expected failed")
-    elif guard.check not in first_failed_step(test):
+    elif guard.check not in first_failed_check(test):
         problems.append(f"guard {describe(test)}, expected the check {guard.check!r}")
     else:
         lines.append(f"guard            {describe(test)}")
@@ -78,6 +79,11 @@ def main() -> int:
     run_dir = newest_run(args.root, label)
     if run_dir is None:
         print(f"no finished {label} run under {args.root}")
+        return 1
+    selection = read_selection(run_dir)
+    if selection.get("deselected"):
+        print(f"[{label}] {run_dir} ran {selection['selected']} of "
+              f"{selection['collected']} tests; the matrix holds for the whole suite only")
         return 1
     lines, problems = check(load_run(run_dir), args.flag)
     verdict = (f"[{label}] NOT as the matrix requires:\n- " + "\n- ".join(problems)

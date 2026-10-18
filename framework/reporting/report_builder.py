@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
+from framework.pipeline.manifest import read_selection
 from framework.reporting import evidence, profiles
 from framework.reporting.failure_reasons import classify_failure_text, first_error_line
 from framework.reporting.recorder import FAILED, KNOWN_ISSUE, PASSED, SKIPPED
@@ -35,16 +36,19 @@ def _when(iso: str) -> str:
         return iso or ""
 
 
-def _step_files(run_dir: Path) -> dict:
-    by_nodeid = {}
-    for path in sorted(run_dir.glob("steps__*.json")):
+def _check_files(run_dir: Path) -> tuple[dict, list]:
+    by_nodeid, unreadable = {}, []
+    for path in sorted(run_dir.glob("checks__*.json")):
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (ValueError, OSError):
+            unreadable.append(path.name)
             continue
         if data.get("nodeid"):
             by_nodeid[data["nodeid"]] = data
-    return by_nodeid
+        else:
+            unreadable.append(path.name)
+    return by_nodeid, unreadable
 
 
 def _evidence(run_dir: Path) -> dict:
@@ -66,6 +70,22 @@ def _evidence(run_dir: Path) -> dict:
     return found
 
 
+def selection_view(selection: dict, ran: int) -> dict:
+    collected = (selection or {}).get("collected") or 0
+    if not collected:
+        return {}
+    view = {**selection, "ran": ran}
+    if view["selected"] == collected:
+        sentence = f"All {collected} tests in the suite selected"
+    else:
+        sentence = (f"{view['selected']} of {collected} tests selected - "
+                    f"{view['deselected']} deselected")
+        if view.get("expression"):
+            sentence += f" by {view['expression']}"
+    view["sentence"] = sentence if ran == view["selected"] else f"{sentence} - {ran} ran"
+    return view
+
+
 def load_run(run_dir) -> dict:
     run_dir = Path(run_dir)
     manifest_path = run_dir / "manifest.json"
@@ -73,14 +93,14 @@ def load_run(run_dir) -> dict:
         raise FileNotFoundError(f"{manifest_path} not found: nothing authoritative "
                                 f"to report on")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    steps_by_nodeid = _step_files(run_dir)
+    checks_by_nodeid, unreadable_checks = _check_files(run_dir)
     evidence = _evidence(run_dir)
 
     tests = []
     for entry in manifest.get("tests", []):
         nodeid, func = entry["nodeid"], entry["func"]
         profile = profiles.profile_for(nodeid)
-        steps = steps_by_nodeid.get(nodeid, {}).get("steps", [])
+        checks = checks_by_nodeid.get(nodeid, {}).get("checks", [])
         tests.append({
             "nodeid": nodeid, "func": func, "profile": profile.key,
             "section": profile.section_for(func),
@@ -88,14 +108,17 @@ def load_run(run_dir) -> dict:
             "number": profile.number_for(func),
             "status": entry["status"], "duration": entry.get("duration", 0),
             "failure": entry.get("failure"), "skip_reason": entry.get("skip_reason"),
-            "steps": steps,
-            "known_issues": [s.get("message", "") for s in steps
+            "checks": checks,
+            "known_issues": [s.get("message", "") for s in checks
                              if s.get("status") == KNOWN_ISSUE],
-            "skipped_checks": [(s.get("step", ""), s.get("message", ""))
-                               for s in steps if s.get("status") == SKIPPED],
-            "metadata": steps_by_nodeid.get(nodeid, {}).get("metadata", {}),
+            "skipped_checks": [(s.get("check", ""), s.get("message", ""))
+                               for s in checks if s.get("status") == SKIPPED],
+            "metadata": checks_by_nodeid.get(nodeid, {}).get("metadata", {}),
             "evidence": evidence.get(nodeid),
         })
+    if not tests:
+        raise ValueError(f"{run_dir}: the manifest lists no tests, so there is "
+                         f"nothing to report on")
     tests.sort(key=lambda t: (t["number"] == 0, t["number"]))
 
     counts = {s: sum(1 for t in tests if t["status"] == s)
@@ -103,14 +126,19 @@ def load_run(run_dir) -> dict:
     counts["total"] = len(tests)
     counts["known_issues"] = sum(len(t["known_issues"]) for t in tests)
     counts["skipped_checks"] = sum(len(t["skipped_checks"]) for t in tests)
-    # A test with no recorded steps still checked one thing directly.
-    counts["checks"] = sum(len(t["steps"]) or 1 for t in tests) - counts["skipped_checks"]
+    # A test with no recorded checks still checked one thing directly. This is what the
+    # run recorded, never what it would have: a test that dies at its third check never
+    # declares the ones it would have made after it.
+    counts["checks_recorded"] = (sum(len(t["checks"]) or 1 for t in tests)
+                                 - counts["skipped_checks"])
     counts["checks_passed"] = sum(
-        sum(1 for s in t["steps"] if s.get("status") == PASSED) if t["steps"]
+        sum(1 for s in t["checks"] if s.get("status") == PASSED) if t["checks"]
         else int(t["status"] == "passed") for t in tests)
-    # Steps for a test the manifest never saw: the counts understate the run.
+    # Checks for a test the manifest never saw: the counts understate the run.
     known = {t["nodeid"] for t in tests}
-    counts["orphan_step_files"] = sorted(n for n in steps_by_nodeid if n not in known)
+    counts["orphan_check_files"] = sorted(n for n in checks_by_nodeid if n not in known)
+    # Unreadable, so the checks it holds are missing from every count above.
+    counts["unreadable_check_files"] = sorted(unreadable_checks)
     verdict = ("failed" if counts["failed"] else
                "skipped" if counts["skipped"] else "passed")
 
@@ -127,6 +155,7 @@ def load_run(run_dir) -> dict:
         "suite": identity.key, "suite_title": identity.title,
         "passed_subhead": identity.passed_subhead,
         "counts": counts, "verdict": verdict, "facts": facts, "tests": tests,
+        "selection": selection_view(read_selection(run_dir), len(tests)),
         "subject": subject_line(identity.title, verdict, counts,
                                 manifest.get("finished")),
     }
@@ -140,7 +169,8 @@ def subject_line(name: str, verdict: str, counts: dict, finished: str) -> str:
         head = f"[GAPS] {name}: {counts['passed']} passed, {counts['skipped']} not verified"
     else:
         head = f"[PASSED] {name}: all {total} tests passed"
-    head += f" - {counts['checks_passed']} of {counts['checks']} checks passed"
+    head += (f" - {counts['checks_passed']} of "
+             f"{counts['checks_recorded']} recorded checks passed")
     if counts.get("known_issues"):
         head += f" ({counts['known_issues']} known issue(s))"
     if counts.get("skipped_checks"):
@@ -149,15 +179,50 @@ def subject_line(name: str, verdict: str, counts: dict, finished: str) -> str:
 
 
 def failure_view(test: dict) -> dict:
-    bad = next((s for s in test["steps"] if s.get("status") == FAILED), None)
+    bad = next((s for s in test["checks"] if s.get("status") == FAILED), None)
     if bad:
-        return {"step": bad.get("step", ""), "means": (bad.get("means") or "").strip(),
+        return {"check": bad.get("check", ""), "means": (bad.get("means") or "").strip(),
                 "expected": (bad.get("expected") or "").strip(),
                 "instead": (bad.get("message") or "").strip()
                 or first_error_line(test["failure"]),
-                "error": (bad.get("error") or "").strip()}
-    return {"step": "", "means": classify_failure_text(test["failure"]),
-            "expected": "", "instead": first_error_line(test["failure"]), "error": ""}
+                "error": (bad.get("error") or "").strip(),
+                "stopped": _stopped(test)}
+    return {"check": "", "means": classify_failure_text(test["failure"]),
+            "expected": "", "instead": first_error_line(test["failure"]), "error": "",
+            "stopped": _stopped(test)}
+
+
+def _stopped(test: dict) -> dict:
+    # Only the test knows the checks it would have made next; the report can say
+    # where it got to.
+    if test["status"] != "failed" or not test["checks"]:
+        return {}
+    last = test["checks"][-1]
+    if last.get("status") == FAILED:
+        return {} if last.get("soft") else {"number": len(test["checks"]), "inside": True}
+    if last.get("status") == SKIPPED:
+        # That check already says it did not run, and why.
+        return {}
+    if any(c.get("soft") and c.get("status") == FAILED for c in test["checks"]):
+        # Teardown raised that failure, so nothing after the last check need be missing.
+        return {}
+    return {"number": len(test["checks"]), "inside": False}
+
+
+def _stopped_text(stopped: dict) -> str:
+    if not stopped:
+        return ""
+    if stopped["inside"]:
+        return (f'The test stopped at check {stopped["number"]}, so whatever it would '
+                f'have checked after this one did not run.')
+    return (f'The test stopped after check {stopped["number"]}, on an action rather than '
+            f'a check, so whatever it would have checked after that did not run.')
+
+
+def _stopped_note(stopped: dict) -> str:
+    text = _stopped_text(stopped)
+    return (f'<div style="margin:6px 0 2px;font-size:12px;color:{MUTED};">{text}</div>'
+            if text else "")
 
 
 def _pill(status: str) -> str:
@@ -196,34 +261,37 @@ def _note_box(title: str, text: str, status: str) -> str:
             f'{_esc(text)}</div>')
 
 
-def _steps_table(test: dict) -> str:
-    if not test["steps"]:
-        text = {"passed": "No steps recorded: this test asserts directly.",
-                "skipped": "No steps recorded: skipped before its first step.",
-                }.get(test["status"], "No steps recorded: it failed before its first step.")
+def _checks_table(test: dict) -> str:
+    if not test["checks"]:
+        text = {"passed": "No checks recorded: this test asserts directly.",
+                "skipped": "No checks recorded: skipped before its first check.",
+                }.get(test["status"], "No checks recorded: it failed before its first check.")
         return f'<p style="color:{MUTED};font-size:13px;">{text}</p>'
     rows, first_failure = [], True
+    stopped = _stopped(test)
     files = (test.get("evidence") or {}).get("files", {})
-    for number, step in enumerate(test["steps"], 1):
-        status = step.get("status", SKIPPED)
+    for number, check in enumerate(test["checks"], 1):
+        status = check.get("status", SKIPPED)
         cell = ""
         if status == FAILED:
-            detail = (step.get("error") or "").strip()
+            detail = (check.get("error") or "").strip()
             if first_failure and test["failure"]:
                 # The test's own failure output belongs to the check that broke first.
                 detail = f"{detail}\n\n{test['failure']}".strip()
             first_failure = False
-            cell += _why_box((step.get("means") or "").strip(),
-                             (step.get("expected") or "").strip(),
-                             (step.get("message") or "").strip(), detail)
+            cell += _why_box((check.get("means") or "").strip(),
+                             (check.get("expected") or "").strip(),
+                             (check.get("message") or "").strip(), detail)
         elif status == KNOWN_ISSUE:
-            cell += _note_box("Known issue:", step.get("message"), "known_issue")
+            cell += _note_box("Known issue:", check.get("message"), "known_issue")
         elif status == SKIPPED:
-            cell += _note_box("Not run:", step.get("message"), "skipped")
-            if step.get("expected"):
-                cell += _labelled("Would have checked", step["expected"])
+            cell += _note_box("Not run:", check.get("message"), "skipped")
+            if check.get("expected"):
+                cell += _labelled("Would have checked", check["expected"])
         else:
-            cell += f'<div style="font-size:13px;">{_esc(step.get("message"))}</div>'
+            cell += f'<div style="font-size:13px;">{_esc(check.get("message"))}</div>'
+        if stopped.get("inside") and number == stopped["number"]:
+            cell += _stopped_note(stopped)
         if number in files:
             links = " - ".join(f'<a href="{_esc(quote(path))}">{_esc(label)}</a>'
                                for label, path in files[number])
@@ -232,7 +300,7 @@ def _steps_table(test: dict) -> str:
         td = f'padding:8px;border-bottom:1px solid {LINE};vertical-align:top;'
         rows.append(
             f'<tr><td style="{td}white-space:nowrap;width:1%;">{_pill(status)}</td>'
-            f'<td style="{td}width:34%;font-size:13px;">{_esc(step.get("step"))}</td>'
+            f'<td style="{td}width:34%;font-size:13px;">{_esc(check.get("check"))}</td>'
             f'<td style="{td}">{cell}</td></tr>')
     th = (f'padding:6px 8px;border-bottom:2px solid {LINE};text-align:left;font-size:11px;'
           f'color:{MUTED};text-transform:uppercase;letter-spacing:.05em;font-weight:600;')
@@ -250,9 +318,11 @@ def _test_block(test: dict) -> str:
     if status == "skipped" and test["skip_reason"]:
         body += _note_box("Skipped:", test["skip_reason"], "skipped")
     elif status == "failed" and test["failure"] and not any(
-            s.get("status") == FAILED for s in test["steps"]):
+            s.get("status") == FAILED for s in test["checks"]):
         f = failure_view(test)
         body += _why_box(f["means"], f["expected"], f["instead"], test["failure"])
+        # It broke between checks, so no check row can carry where it got to.
+        body += _stopped_note(f["stopped"])
     video = (test.get("metadata") or {}).get("video")
     if video:
         body += (f'<div style="margin:6px 0;font-size:12px;color:{MUTED};">'
@@ -266,9 +336,9 @@ def _test_block(test: dict) -> str:
                  f'<a href="{_esc(quote(kept["folder"]))}/">{_esc(kept["folder"])}/</a> - '
                  f'files are numbered by the check they belong to, listed in test.txt.'
                  f'{trace}</div>')
-    steps = test["steps"]
-    passed = sum(1 for st in steps if st.get("status") == PASSED)
-    count = f"{passed}/{len(steps)} steps" if steps else "no steps"
+    checks = test["checks"]
+    passed = sum(1 for st in checks if st.get("status") == PASSED)
+    count = f"{passed}/{len(checks)} checks" if checks else "no checks"
     number = f'<b style="color:{MUTED};">#{test["number"]}</b> ' if test["number"] else ""
     return (f'<details{opened} style="border:1px solid {LINE};border-radius:6px;'
             f'margin-bottom:8px;background:#fff;"><summary style="padding:10px 12px;'
@@ -277,7 +347,7 @@ def _test_block(test: dict) -> str:
             f'{_duration(test["duration"])}</span></summary>'
             f'<div style="padding:0 12px 12px;"><div style="font-family:Consolas,'
             f'monospace;font-size:11px;color:{MUTED};">{_esc(test["nodeid"])}</div>'
-            f'{body}{_steps_table(test)}</div></details>')
+            f'{body}{_checks_table(test)}</div></details>')
 
 
 def _facts_table(facts: list) -> str:
@@ -298,7 +368,7 @@ def _headline(run: dict) -> str:
     return {"failed": f'{c["failed"]} of {c["total"]} tests failed',
             "skipped": f'{c["passed"]} tests passed, {c["skipped"]} not verified',
             "passed": f'All {c["total"]} tests passed'}[run["verdict"]] \
-        + f' - {c["checks"]} checks'
+        + f' - {c["checks_passed"]} of {c["checks_recorded"]} recorded checks passed'
 
 
 def render_report(run: dict) -> str:
@@ -313,14 +383,20 @@ def render_report(run: dict) -> str:
         sections.append(f'<h2 style="font-size:13px;color:{MUTED};text-transform:'
                         f'uppercase;margin:24px 0 8px;">{_esc(name)}</h2>{blocks}')
     orphan = ""
-    if c["orphan_step_files"]:
+    if c["orphan_check_files"]:
         orphan = (f'<p style="color:{STATUS["failed"]["fg"]};">Report integrity: '
-                  f'steps were recorded for tests missing from the manifest, so the '
-                  f'check count understates the run: {_esc(", ".join(c["orphan_step_files"]))}'
+                  f'checks were recorded for tests missing from the manifest, so the '
+                  f'check count understates the run: {_esc(", ".join(c["orphan_check_files"]))}'
                   f'</p>')
+    if c["unreadable_check_files"]:
+        orphan += (f'<p style="color:{STATUS["failed"]["fg"]};">Report integrity: '
+                   f'{len(c["unreadable_check_files"])} check file(s) could not be read, '
+                   f'so the check count understates the run: '
+                   f'{_esc(", ".join(c["unreadable_check_files"]))}</p>')
     interrupted = (f'<p style="color:{STATUS["failed"]["fg"]};">This run was '
                    f'interrupted; tests still executing are reported as not verified.</p>'
                    if run["interrupted"] else "")
+    selected = _selected_line(run, 13)
     return (
         f'<!doctype html><html><head><meta charset="utf-8"><title>'
         f'{_esc(run["suite_title"])} {_esc(run["run_id"])}</title></head>'
@@ -332,13 +408,19 @@ def render_report(run: dict) -> str:
         f'{_esc(_when(run["finished"]))} - {_duration(run["duration"])}</div>'
         f'<div style="background:{v["bg"]};border-radius:8px;padding:16px 18px;">'
         f'<div style="color:{v["fg"]};font-weight:700;font-size:11px;letter-spacing:.08em;">'
-        f'{v["label"]}</div><div style="font-size:22px;font-weight:700;">'
+        f'{v["label"]}</div>{selected}<div style="font-size:22px;font-weight:700;">'
         f'{_esc(_headline(run))}</div><div style="font-size:13px;color:{MUTED};">'
         f'{c["passed"]} passed - {c["failed"]} failed - {c["skipped"]} skipped - '
         f'{c["known_issues"]} known issue(s) - {c["skipped_checks"]} check(s) not run'
         f'{" - environment " + _esc(run["environment"]) if run["environment"] else ""}'
         f'</div></div>{interrupted}{orphan}{"".join(sections)}{_facts_table(run["facts"])}'
         f'</div></body></html>')
+
+
+def _selected_line(run: dict, size: int) -> str:
+    sentence = (run.get("selection") or {}).get("sentence", "")
+    return (f'<div style="font-size:{size}px;font-weight:600;color:{INK};">'
+            f'{_esc(sentence)}</div>' if sentence else "")
 
 
 def _email_card(test: dict, bg: str, inner: str) -> str:
@@ -357,9 +439,10 @@ def _email_heading(text: str, color: str) -> str:
 def render_email(run: dict) -> str:
     v = STATUS[run["verdict"]]
     by = lambda s: [t for t in run["tests"] if t["status"] == s]  # noqa: E731
-    subhead = {"failed": "Failures first, each with the exact step that broke.",
+    subhead = {"failed": "Failures first, each with the exact check that broke.",
                "skipped": "Nothing failed, but the tests below did not run.",
                "passed": run["passed_subhead"]}[run["verdict"]]
+    selected = _selected_line(run, 12)
     blocks = []
     if by("failed"):
         blocks.append(_email_heading(f"Failed ({len(by('failed'))})", STATUS["failed"]["fg"]))
@@ -370,8 +453,11 @@ def render_email(run: dict) -> str:
             if f["expected"]:
                 inner += _labelled("Expected", f["expected"])
             inner += _labelled("Instead", f["instead"])
-            if f["step"]:
-                inner += _labelled("Step", f["step"])
+            if f["check"]:
+                inner += _labelled("Check", f["check"])
+            if f["stopped"]:
+                inner += (f'<div style="margin-top:6px;font-size:12px;color:{MUTED};">'
+                          f'{_esc(_stopped_text(f["stopped"]))}</div>')
             blocks.append(_email_card(test, STATUS["failed"]["bg"], inner))
     known = [t for t in run["tests"] if t["known_issues"]]
     if known:
@@ -416,12 +502,12 @@ def render_email(run: dict) -> str:
         f'font-weight:700;">{_esc(run["suite_title"])}</td></tr>'
         f'<tr><td style="padding:16px 24px;background:{v["bg"]};"><div style="color:'
         f'{v["fg"]};font-size:11px;font-weight:700;letter-spacing:.08em;">{v["label"]}</div>'
-        f'<div style="font-size:20px;font-weight:700;">{_esc(_headline(run))}</div>'
+        f'{selected}<div style="font-size:20px;font-weight:700;">{_esc(_headline(run))}</div>'
         f'<div style="font-size:13px;color:{MUTED};">{_esc(subhead)}</div></td></tr>'
         f'{strip_row}{"".join(blocks)}'
         f'<tr><td style="padding:16px 24px;background:{PAGE};font-size:12px;color:{MUTED};">'
         f'Run {_esc(run["run_id"])} - {_esc(_when(run["finished"]))} - '
-        f'{_duration(run["duration"])}. The attached report has every step.</td></tr>'
+        f'{_duration(run["duration"])}. The attached report has every check.</td></tr>'
         f'</table></td></tr></table>')
 
 
