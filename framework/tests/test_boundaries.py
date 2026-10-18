@@ -9,6 +9,8 @@ pytestmark = pytest.mark.unit
 
 FRAMEWORK = Path(__file__).resolve().parent.parent
 
+QUOTED_TEST_NAME = re.compile(r"""['"](test_\w+)['"]""")
+
 PRODUCT_WORDS = re.compile(
     r"\b(broadcasts?|campaigns?|credits?|demo[ _-]?esp|newsletters?|email[ _-]?batch(es)?|"
     r"automations?)\b", re.IGNORECASE)
@@ -16,6 +18,10 @@ PRODUCT_WORDS = re.compile(
 
 def _sources():
     return [p for p in FRAMEWORK.rglob("*.py") if p.resolve() != Path(__file__).resolve()]
+
+
+def _modules():
+    return [p for p in _sources() if "tests" not in p.parts]
 
 
 def test_framework_never_imports_the_example():
@@ -31,6 +37,14 @@ def test_framework_never_imports_the_example():
             offenders += [f"{path.relative_to(FRAMEWORK)}: imports {n}"
                           for n in names if n == "example" or n.startswith("example.")]
     assert not offenders, "framework/ must not import example/:\n" + "\n".join(offenders)
+
+
+def test_framework_names_no_test_of_the_example():
+    offenders = []
+    for path in _modules():
+        for name in sorted(set(QUOTED_TEST_NAME.findall(path.read_text(encoding="utf-8")))):
+            offenders.append(f"{path.relative_to(FRAMEWORK)}: {name}")
+    assert not offenders, f"framework/ names tests of the suite: {offenders}"
 
 
 def test_framework_uses_no_product_vocabulary():
