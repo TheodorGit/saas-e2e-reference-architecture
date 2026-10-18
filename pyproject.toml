@@ -33,13 +33,16 @@ exclude = ["framework.tests*"]
 
 [tool.pytest.ini_options]
 testpaths = ["framework/tests", "example/suite/tests"]
-addopts = "-ra --strict-markers"
+addopts = "-ra"
+# An unregistered marker is a collection error, not a warning. On pytest 9.0.2 that
+# takes the ini option: --strict-markers in addopts only warns and the run exits 0.
+# 9.1.1 errors on either form, and the pytest floor above admits both.
+strict_markers = true
 markers = [
     "unit: framework unit tests, no browser and no network",
     "integration: framework tests against a real local service (Mailpit)",
     "pipeline: example staged pipeline (baseline, actions, verification)",
     "api: example API tests",
-    "destructive: changes controlled resources, opt-in only",
 ]
 
 [tool.ruff]
@@ -47,4 +50,4 @@ line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP"]
+select = ["E", "F", "I", "B", "UP", "RUF013"]
