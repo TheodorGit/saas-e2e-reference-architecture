@@ -41,11 +41,18 @@ FIND_SCROLLER = """([x, y]) => {
 }"""
 STEPS = 24
 BOTTOM_PAUSE_S = 1.5
+RENDER_BUDGET_S = 5
+
+
+def _scroller(page):
+    handle = page.evaluate_handle(FIND_SCROLLER, [SCREEN[0] / 2, SCREEN[1] / 2])
+    return handle, page.evaluate("el => el.scrollHeight - el.clientHeight", handle)
 
 
 def present(page, seconds: float):
-    scroller = page.evaluate_handle(FIND_SCROLLER, [SCREEN[0] / 2, SCREEN[1] / 2])
-    distance = page.evaluate("el => el.scrollHeight - el.clientHeight", scroller)
+    # The inbox viewer fills its panel after load, so the scroller is read until it holds content.
+    (scroller, distance), _ = poll_until(lambda: _scroller(page), lambda found: found[1] > 0,
+                                         RENDER_BUDGET_S, 0.2)
     if distance <= 0:
         time.sleep(seconds)  # nothing to scroll: the whole page is in view
         return
@@ -80,7 +87,6 @@ def main():
         if email_id:
             print("[show] the report email, as it arrived in the inbox")
             page.goto(f"{mailpit}/view/{email_id}")
-            page.wait_for_load_state("networkidle")
             present(page, seconds)
         if report and report.exists():
             print("[show] the full report it attaches")

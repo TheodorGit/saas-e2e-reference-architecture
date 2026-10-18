@@ -24,7 +24,7 @@ class RolelessDropdown:
     def options(self) -> list[str]:
         self.toggle.click()
         expect(self.menu).to_be_visible()
-        texts = [t.strip() for t in self.menu.locator(".dropdown-item").all_text_contents()]
+        texts = [t.strip() for t in self.menu.locator(".dropdown-item").all_inner_texts()]
         self.toggle.click()
         expect(self.menu).to_be_hidden()
         return texts

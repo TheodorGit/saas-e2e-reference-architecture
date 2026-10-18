@@ -44,7 +44,7 @@ def assert_disjoint(left: Iterable, right: Iterable, what: str,
     _not_vacuous(left, what, allow_empty)
     both = sorted(_norm(left) & _norm(right), key=str)
     assert not both, f"{what}: {_show(both)}"
-    return f"no overlap ({what.split(':')[0]})"
+    return f"no overlap ({what.split(':', 1)[0]})"
 
 
 def assert_partition(universe: Iterable, parts: Mapping[str, Iterable]) -> str:

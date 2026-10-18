@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from playwright.sync_api import Locator, Page, expect
@@ -37,15 +38,12 @@ class ContactsPage:
             has=self.page.get_by_role("cell", name=email.lower(), exact=True))
 
     def emails(self) -> list[str]:
-        return [self.row_email(r) for r in self.page.get_by_test_id("contact-row").all()]
-
-    @staticmethod
-    def row_email(row: Locator) -> str:
-        return row.get_by_role("cell").nth(1).inner_text().strip()
+        return [t.strip() for t in
+                self.page.get_by_test_id("contact-email").all_inner_texts()]
 
     def tags(self, email: str) -> list[str]:
         return sorted(t.strip() for t in
-                      self.row(email).get_by_test_id("tag-chip").all_text_contents())
+                      self.row(email).get_by_test_id("tag-chip").all_inner_texts())
 
     def search(self, text: str):
         # Debounced: wait for the request carrying this query, then the table.
@@ -93,4 +91,4 @@ class ContactsPage:
     def export(self) -> str:
         with self.page.expect_download() as caught:
             self.page.get_by_role("link", name="Export CSV").click()
-        return open(caught.value.path(), encoding="utf-8").read()
+        return Path(caught.value.path()).read_text(encoding="utf-8")

@@ -103,7 +103,7 @@ export async function contactsView(root) {
     const tr = h("tr", { "data-testid": "contact-row", "data-email": contact.email },
       h("td", {}, box, h("label", { for: `select-${contact.id}`, class: "sr-only" },
         `Select ${contact.email}`)),
-      h("td", { text: contact.email }),
+      h("td", { "data-testid": "contact-email", text: contact.email }),
       h("td", { text: `${contact.first_name} ${contact.last_name}`.trim() }),
       h("td", {}, status.el),
       tagCell,
